@@ -1,16 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>fox-bot · live monitor</title>
 <style>
   :root{--bg:#0b0f14;--card:#131a22;--line:#1f2a35;--txt:#e6edf3;--dim:#7d8b99;
-        --green:#2ecc71;--red:#ff5c6c;--amber:#f5b942;--accent:#3ba7ff;}
+        --green:#2ecc71;--red:#ff5c6c;--amber:#f5b942;--accent:#3ba7ff;--purple:#a577ff}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:20px;max-width:1100px;margin:0 auto}
-  h1{font-size:20px;font-weight:700;letter-spacing:.3px}
-  .sub{color:var(--dim);font-size:12px;margin-top:2px}
+  body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:20px;max-width:1160px;margin:0 auto}
+  h1{font-size:20px;font-weight:700}.sub{color:var(--dim);font-size:12px;margin-top:2px}
   header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
   .badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--line)}
@@ -19,146 +16,138 @@
   .b-net{background:rgba(59,167,255,.12);color:var(--accent);border-color:rgba(59,167,255,.4)}
   button{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px}
   button:hover{border-color:var(--accent)}
-  .grid{display:grid;grid-template-columns:1fr;gap:16px}
-  @media(min-width:820px){.grid{grid-template-columns:1fr 1fr}}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
-  .card.full{grid-column:1/-1}
-  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-bottom:12px;font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-bottom:14px;font-weight:600}
+  .grid2{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:820px){.grid2{grid-template-columns:1fr 1fr}}
+  /* pipeline */
+  .pipe{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:4px}
+  .gate{flex:1;min-width:150px;background:#0f151d;border:1px solid var(--line);border-radius:10px;padding:12px;position:relative}
+  .gate+.gate{margin-left:22px}
+  .gate::after{content:"›";position:absolute;right:-19px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:22px;font-weight:700}
+  .gate:last-child::after{content:""}
+  .gnum{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#00121f;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .gname{font-weight:700;font-size:13px;letter-spacing:.3px}
+  .gdesc{color:var(--dim);font-size:11px;margin-top:4px;min-height:44px}
+  .gcount{margin-top:8px;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .gcount small{font-size:11px;color:var(--dim);font-weight:500}
+  .g1 .gnum{background:var(--accent)} .g2 .gnum{background:var(--purple)}
+  .g3 .gnum{background:var(--amber)} .g4 .gnum{background:#ff9a3c} .g5 .gnum{background:var(--green)}
+  /* trace */
+  .trace-row{display:grid;grid-template-columns:210px 1fr 92px;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+  .trace-row:last-child{border-bottom:none}
+  .tr-name{font-size:12px}.tr-name b{font-weight:600}.tr-name span{color:var(--dim)}
+  .flow{display:flex;gap:4px}
+  .seg{flex:1;height:8px;border-radius:3px;background:#1a2430}
+  .seg.on{background:var(--accent)} .seg.rej{background:var(--red)}
+  .seg.blk{background:var(--amber)} .seg.exe{background:var(--green)} .seg.reg{background:var(--purple)}
+  .tr-out{font-size:11px;font-weight:600;text-align:right}
+  .o-rej{color:var(--red)}.o-blk{color:var(--amber)}.o-exe{color:var(--green)}.o-reg{color:var(--purple)}.o-noop{color:var(--dim)}
   table{width:100%;border-collapse:collapse}
-  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px}
   th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
   .pill{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
-  .p-yes{background:rgba(46,204,113,.14);color:var(--green)}
-  .p-wait{background:rgba(125,139,153,.16);color:var(--dim)}
-  .p-long{background:rgba(46,204,113,.14);color:var(--green)}
-  .p-short{background:rgba(255,92,108,.14);color:var(--red)}
+  .p-yes{background:rgba(46,204,113,.14);color:var(--green)}.p-wait{background:rgba(125,139,153,.16);color:var(--dim)}
+  .p-long{background:rgba(46,204,113,.14);color:var(--green)}.p-short{background:rgba(255,92,108,.14);color:var(--red)}
   .p-fund{background:rgba(59,167,255,.14);color:var(--accent)}
-  .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
-  .pos{color:var(--green)}.neg{color:var(--red)}
-  .muted{color:var(--dim)}
-  .decision{padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
-  .decision:last-child{border-bottom:none}
-  .dact{font-weight:600}.dreason{color:var(--dim)}
+  .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--dim)}
   .err{background:rgba(255,92,108,.1);border:1px solid rgba(255,92,108,.4);color:var(--red);padding:12px;border-radius:10px}
   code{color:var(--dim);font-size:11px}
-</style>
-</head>
-<body>
+</style></head><body>
 <header>
-  <div>
-    <h1>🦊 fox-bot · live monitor</h1>
-    <div class="sub">LuxAlgo → fox-bot → Hyperliquid · autonomous trading pipeline</div>
-  </div>
-  <div class="badges">
-    <span id="mode" class="badge">…</span>
-    <span id="net" class="badge b-net">…</span>
-    <button onclick="load()">↻ Refresh</button>
-  </div>
+  <div><h1>🦊 fox-bot · live monitor</h1><div class="sub">LuxAlgo → fox-bot → Hyperliquid · the five-gate pipeline, live</div></div>
+  <div class="badges"><span id="mode" class="badge">…</span><span id="net" class="badge b-net">…</span><button onclick="load()">↻ Refresh</button></div>
 </header>
-
 <div id="err"></div>
 
-<div class="grid">
-  <div class="card full">
-    <h2>Strategies &amp; webhook status</h2>
-    <table>
-      <thead><tr><th>Strategy</th><th>Coin</th><th>Role</th><th>Webhook</th><th class="num">Received</th><th>Last seen</th></tr></thead>
-      <tbody id="strats"></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>Open positions</h2>
-    <table><thead><tr><th>Strategy</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Stop</th></tr></thead>
-    <tbody id="pos"></tbody></table>
-    <div id="pos-empty" class="muted" style="padding:8px 0">No open positions.</div>
-  </div>
-
-  <div class="card">
-    <h2>Month-to-date P&amp;L (realized)</h2>
-    <div id="pnl" class="big">—</div>
-    <div class="sub" id="pnl-month"></div>
-    <div class="sub" style="margin-top:10px">Regime sensor: <span id="regime" class="muted">—</span></div>
-  </div>
-
-  <div class="card full">
-    <h2>Recent decisions (last 5)</h2>
-    <div id="decisions"></div>
+<div class="card">
+  <h2>The pipeline · every webhook runs these five gates in order</h2>
+  <div class="pipe">
+    <div class="gate g1"><div class="gnum">1</div><div class="gname">VERIFY</div><div class="gdesc">Secret valid? Known strategy? Not a duplicate replay?</div><div class="gcount" id="g1">–<small> passed</small></div></div>
+    <div class="gate g2"><div class="gnum">2</div><div class="gname">DECIDE</div><div class="gdesc">Rules: funded · circuit breaker · ≤2 open · cooldown · counter-regime · size</div><div class="gcount" id="g2">–<small> passed</small></div></div>
+    <div class="gate g3"><div class="gnum">3</div><div class="gname">STAGE</div><div class="gdesc">Log the decision + reasoning before any order (audit trail)</div><div class="gcount" id="g3">–<small> passed</small></div></div>
+    <div class="gate g4"><div class="gnum">4</div><div class="gname">EXECUTE</div><div class="gdesc">Place the bracket order (entry + stop) on Hyperliquid</div><div class="gcount" id="g4">–<small> passed</small></div></div>
+    <div class="gate g5"><div class="gnum">5</div><div class="gname">CONFIRM</div><div class="gdesc">Record the fill — order id, price, size — into the position book</div><div class="gcount" id="g5">–<small> filled</small></div></div>
   </div>
 </div>
 
-<div class="sub" style="margin-top:18px;text-align:center" id="foot">—</div>
+<div class="card">
+  <h2>Live signal trace · how far each recent webhook travelled</h2>
+  <div id="trace"><div class="muted">No webhooks yet.</div></div>
+</div>
+
+<div class="card">
+  <h2>Strategies &amp; webhook status</h2>
+  <table><thead><tr><th>Strategy</th><th>Coin</th><th>Role</th><th>Webhook</th><th class="num">Recv</th><th>Last seen</th></tr></thead><tbody id="strats"></tbody></table>
+</div>
+
+<div class="grid2">
+  <div class="card"><h2>Open positions</h2>
+    <table><thead><tr><th>Strategy</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Stop</th></tr></thead><tbody id="pos"></tbody></table>
+    <div id="pos-empty" class="muted" style="padding:8px 0">No open positions.</div></div>
+  <div class="card"><h2>Month-to-date P&amp;L (realized)</h2>
+    <div id="pnl" class="big">—</div><div class="sub" id="pnl-month"></div>
+    <div class="sub" style="margin-top:10px">Regime sensor: <span id="regime" class="muted">—</span></div></div>
+</div>
+
+<div class="sub" style="text-align:center" id="foot">—</div>
 
 <script>
-const BOT = "https://fox-bot-production.up.railway.app";
-const fmt = n => (n>=0?"+":"") + Number(n).toFixed(2);
-const esc = s => (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const BOT="https://fox-bot-production.up.railway.app";
+const fmt=n=>(n>=0?"+":"")+Number(n).toFixed(2);
+const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const GATEDESC={rejected:["rejected","o-rej","rej",1],regime:["regime set","o-reg","reg",2],
+  blocked:["blocked","o-blk","blk",3],noop:["no-op","o-noop","on",3],executed:["executed","o-exe","exe",5]};
 
+function flow(gate,status){
+  const cls = GATEDESC[status] ? GATEDESC[status][2] : "on";
+  let h="";
+  for(let i=1;i<=5;i++){ h+=`<div class="seg ${i<=gate?cls:''}"></div>`; }
+  return h;
+}
 async function load(){
-  const err = document.getElementById("err"); err.innerHTML="";
+  const err=document.getElementById("err");err.innerHTML="";
   try{
-    const [reg,st] = await Promise.all([
-      fetch(BOT+"/registry").then(r=>r.json()),
-      fetch(BOT+"/status").then(r=>r.json())
-    ]);
-
-    // mode + net
+    const [reg,st]=await Promise.all([fetch(BOT+"/registry").then(r=>r.json()),fetch(BOT+"/status").then(r=>r.json())]);
     const mode=document.getElementById("mode");
-    mode.textContent = reg.mode==="LIVE" ? "● LIVE" : "○ PAPER (dry-run)";
-    mode.className = "badge " + (reg.mode==="LIVE"?"b-live":"b-dry");
-    document.getElementById("net").textContent = reg.network;
+    mode.textContent=reg.mode==="LIVE"?"● LIVE":"○ PAPER (dry-run)";mode.className="badge "+(reg.mode==="LIVE"?"b-live":"b-dry");
+    document.getElementById("net").textContent=reg.network;
+
+    // gates
+    const gp=st.gate_passed||{};
+    for(let i=1;i<=5;i++){document.getElementById("g"+i).innerHTML=(gp[i]??0)+`<small> ${i===5?'filled':'passed'}</small>`;}
+
+    // trace
+    const tr=(st.trace||[]).slice().reverse();
+    document.getElementById("trace").innerHTML = tr.length? tr.map(e=>{
+      const g=GATEDESC[e.status]||["?","o-noop","on",e.gate||1];
+      return `<div class="trace-row">
+        <div class="tr-name"><b>${esc(e.strategy)}</b> <span>· ${esc(e.event)}</span><div><code>${esc(e.t)}</code></div></div>
+        <div class="flow">${flow(g[3],e.status)}</div>
+        <div class="tr-out ${g[1]}">${g[0]}</div></div>`;
+    }).join("") : '<div class="muted">No webhooks yet.</div>';
 
     // strategies
-    document.getElementById("strats").innerHTML = reg.strategies.map(s=>{
-      const wired = s.wired
-        ? '<span class="pill p-yes">✅ wired</span>'
-        : '<span class="pill p-wait">⚠ awaiting first fire</span>';
-      const role = s.gate==="sensor" ? "regime sensor"
-                 : s.gate==="counter_regime" ? "5m counter-regime"
-                 : (s.funded?'<span class="pill p-fund">funded</span>':"paper");
-      return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td>
-        <td>${wired}</td><td class="num">${s.webhooks_received}</td>
-        <td class="muted">${s.last_seen||"—"}</td></tr>`;
-    }).join("");
+    document.getElementById("strats").innerHTML=reg.strategies.map(s=>{
+      const wired=s.wired?'<span class="pill p-yes">✅ wired</span>':'<span class="pill p-wait">⚠ awaiting fire</span>';
+      const role=s.gate==="sensor"?"regime sensor":s.gate==="counter_regime"?"5m counter-regime":(s.funded?'<span class="pill p-fund">funded</span>':"paper");
+      return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td><td>${wired}</td><td class="num">${s.webhooks_received}</td><td class="muted">${s.last_seen||"—"}</td></tr>`;}).join("");
 
     // positions
-    const pos = st.positions||{}; const keys=Object.keys(pos);
-    document.getElementById("pos-empty").style.display = keys.length?"none":"block";
-    document.getElementById("pos").innerHTML = keys.map(k=>{
-      const p=pos[k]; const sc=p.side==="long"?"p-long":"p-short";
-      return `<tr><td>${esc(k)}</td><td><span class="pill ${sc}">${p.side}</span></td>
-        <td class="num">${p.size}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td>
-        <td class="num">${Number(p.stop_px).toLocaleString()}</td></tr>`;
-    }).join("");
+    const pos=st.positions||{},keys=Object.keys(pos);
+    document.getElementById("pos-empty").style.display=keys.length?"none":"block";
+    document.getElementById("pos").innerHTML=keys.map(k=>{const p=pos[k],sc=p.side==="long"?"p-long":"p-short";
+      return `<tr><td>${esc(k)}</td><td><span class="pill ${sc}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${Number(p.stop_px).toLocaleString()}</td></tr>`;}).join("");
 
-    // pnl
-    const mp = st.monthly_pnl||{}; const months=Object.keys(mp).sort();
-    const cur = months.length? mp[months[months.length-1]] : 0;
-    const el=document.getElementById("pnl");
-    el.textContent = "$"+fmt(cur); el.className="big "+(cur>=0?"pos":"neg");
-    document.getElementById("pnl-month").textContent = months.length? months[months.length-1] : "no closed trades yet";
+    // pnl + regime
+    const mp=st.monthly_pnl||{},months=Object.keys(mp).sort(),cur=months.length?mp[months[months.length-1]]:0;
+    const el=document.getElementById("pnl");el.textContent="$"+fmt(cur);el.className="big "+(cur>=0?"pos":"neg");
+    document.getElementById("pnl-month").textContent=months.length?months[months.length-1]:"no closed trades yet";
+    const rg=st.regime||{};document.getElementById("regime").textContent=Object.keys(rg).length?Object.entries(rg).map(([k,v])=>`${k}: ${v}`).join(" · "):"no signal yet";
 
-    // regime
-    const rg = st.regime||{};
-    document.getElementById("regime").textContent =
-      Object.keys(rg).length? Object.entries(rg).map(([k,v])=>`${k}: ${v}`).join(" · ") : "no signal yet";
-
-    // decisions
-    const dec = (st.staged_last5||[]).slice().reverse();
-    document.getElementById("decisions").innerHTML = dec.length? dec.map(d=>{
-      const a=d.action||"?"; const col = a==="open"||a==="flip"?"pos":(a==="blocked"||a==="close"?"neg":"muted");
-      return `<div class="decision"><span class="dact ${col}">${a.toUpperCase()}</span>
-        <span class="dreason"> — ${esc(d.reason||"")}</span>
-        <div><code>${esc((d.signal&&d.signal.strategy)||"")} · ${esc(d.t||"")}</code></div></div>`;
-    }).join("") : '<div class="muted">No decisions logged yet.</div>';
-
-    document.getElementById("foot").textContent = "updated "+new Date().toLocaleTimeString()+" · auto-refresh 30s";
-  }catch(e){
-    err.innerHTML = '<div class="err">Could not reach the bot. It may be redeploying, or CORS not yet live. Retrying on next refresh.<br><code>'+esc(String(e))+'</code></div>';
-  }
+    document.getElementById("foot").textContent="updated "+new Date().toLocaleTimeString()+" · auto-refresh 30s";
+  }catch(e){err.innerHTML='<div class="err">Bot unreachable (may be redeploying). Retrying…<br><code>'+esc(String(e))+'</code></div>';}
 }
-load(); setInterval(load, 30000);
-</script>
-</body>
-</html>
+load();setInterval(load,30000);
+</script></body></html>
