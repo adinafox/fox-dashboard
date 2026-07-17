@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>fox-bot · live monitor</title>
+<style>
+  :root{--bg:#0b0f14;--card:#131a22;--line:#1f2a35;--txt:#e6edf3;--dim:#7d8b99;
+        --green:#2ecc71;--red:#ff5c6c;--amber:#f5b942;--accent:#3ba7ff;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:20px;max-width:1100px;margin:0 auto}
+  h1{font-size:20px;font-weight:700;letter-spacing:.3px}
+  .sub{color:var(--dim);font-size:12px;margin-top:2px}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+  .badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--line)}
+  .b-live{background:rgba(46,204,113,.12);color:var(--green);border-color:rgba(46,204,113,.4)}
+  .b-dry{background:rgba(245,185,66,.12);color:var(--amber);border-color:rgba(245,185,66,.4)}
+  .b-net{background:rgba(59,167,255,.12);color:var(--accent);border-color:rgba(59,167,255,.4)}
+  button{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:820px){.grid{grid-template-columns:1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card.full{grid-column:1/-1}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-bottom:12px;font-weight:600}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
+  .p-yes{background:rgba(46,204,113,.14);color:var(--green)}
+  .p-wait{background:rgba(125,139,153,.16);color:var(--dim)}
+  .p-long{background:rgba(46,204,113,.14);color:var(--green)}
+  .p-short{background:rgba(255,92,108,.14);color:var(--red)}
+  .p-fund{background:rgba(59,167,255,.14);color:var(--accent)}
+  .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+  .pos{color:var(--green)}.neg{color:var(--red)}
+  .muted{color:var(--dim)}
+  .decision{padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+  .decision:last-child{border-bottom:none}
+  .dact{font-weight:600}.dreason{color:var(--dim)}
+  .err{background:rgba(255,92,108,.1);border:1px solid rgba(255,92,108,.4);color:var(--red);padding:12px;border-radius:10px}
+  code{color:var(--dim);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🦊 fox-bot · live monitor</h1>
+    <div class="sub">LuxAlgo → fox-bot → Hyperliquid · autonomous trading pipeline</div>
+  </div>
+  <div class="badges">
+    <span id="mode" class="badge">…</span>
+    <span id="net" class="badge b-net">…</span>
+    <button onclick="load()">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="err"></div>
+
+<div class="grid">
+  <div class="card full">
+    <h2>Strategies &amp; webhook status</h2>
+    <table>
+      <thead><tr><th>Strategy</th><th>Coin</th><th>Role</th><th>Webhook</th><th class="num">Received</th><th>Last seen</th></tr></thead>
+      <tbody id="strats"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Open positions</h2>
+    <table><thead><tr><th>Strategy</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Stop</th></tr></thead>
+    <tbody id="pos"></tbody></table>
+    <div id="pos-empty" class="muted" style="padding:8px 0">No open positions.</div>
+  </div>
+
+  <div class="card">
+    <h2>Month-to-date P&amp;L (realized)</h2>
+    <div id="pnl" class="big">—</div>
+    <div class="sub" id="pnl-month"></div>
+    <div class="sub" style="margin-top:10px">Regime sensor: <span id="regime" class="muted">—</span></div>
+  </div>
+
+  <div class="card full">
+    <h2>Recent decisions (last 5)</h2>
+    <div id="decisions"></div>
+  </div>
+</div>
+
+<div class="sub" style="margin-top:18px;text-align:center" id="foot">—</div>
+
+<script>
+const BOT = "https://fox-bot-production.up.railway.app";
+const fmt = n => (n>=0?"+":"") + Number(n).toFixed(2);
+const esc = s => (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function load(){
+  const err = document.getElementById("err"); err.innerHTML="";
+  try{
+    const [reg,st] = await Promise.all([
+      fetch(BOT+"/registry").then(r=>r.json()),
+      fetch(BOT+"/status").then(r=>r.json())
+    ]);
+
+    // mode + net
+    const mode=document.getElementById("mode");
+    mode.textContent = reg.mode==="LIVE" ? "● LIVE" : "○ PAPER (dry-run)";
+    mode.className = "badge " + (reg.mode==="LIVE"?"b-live":"b-dry");
+    document.getElementById("net").textContent = reg.network;
+
+    // strategies
+    document.getElementById("strats").innerHTML = reg.strategies.map(s=>{
+      const wired = s.wired
+        ? '<span class="pill p-yes">✅ wired</span>'
+        : '<span class="pill p-wait">⚠ awaiting first fire</span>';
+      const role = s.gate==="sensor" ? "regime sensor"
+                 : s.gate==="counter_regime" ? "5m counter-regime"
+                 : (s.funded?'<span class="pill p-fund">funded</span>':"paper");
+      return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td>
+        <td>${wired}</td><td class="num">${s.webhooks_received}</td>
+        <td class="muted">${s.last_seen||"—"}</td></tr>`;
+    }).join("");
+
+    // positions
+    const pos = st.positions||{}; const keys=Object.keys(pos);
+    document.getElementById("pos-empty").style.display = keys.length?"none":"block";
+    document.getElementById("pos").innerHTML = keys.map(k=>{
+      const p=pos[k]; const sc=p.side==="long"?"p-long":"p-short";
+      return `<tr><td>${esc(k)}</td><td><span class="pill ${sc}">${p.side}</span></td>
+        <td class="num">${p.size}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td>
+        <td class="num">${Number(p.stop_px).toLocaleString()}</td></tr>`;
+    }).join("");
+
+    // pnl
+    const mp = st.monthly_pnl||{}; const months=Object.keys(mp).sort();
+    const cur = months.length? mp[months[months.length-1]] : 0;
+    const el=document.getElementById("pnl");
+    el.textContent = "$"+fmt(cur); el.className="big "+(cur>=0?"pos":"neg");
+    document.getElementById("pnl-month").textContent = months.length? months[months.length-1] : "no closed trades yet";
+
+    // regime
+    const rg = st.regime||{};
+    document.getElementById("regime").textContent =
+      Object.keys(rg).length? Object.entries(rg).map(([k,v])=>`${k}: ${v}`).join(" · ") : "no signal yet";
+
+    // decisions
+    const dec = (st.staged_last5||[]).slice().reverse();
+    document.getElementById("decisions").innerHTML = dec.length? dec.map(d=>{
+      const a=d.action||"?"; const col = a==="open"||a==="flip"?"pos":(a==="blocked"||a==="close"?"neg":"muted");
+      return `<div class="decision"><span class="dact ${col}">${a.toUpperCase()}</span>
+        <span class="dreason"> — ${esc(d.reason||"")}</span>
+        <div><code>${esc((d.signal&&d.signal.strategy)||"")} · ${esc(d.t||"")}</code></div></div>`;
+    }).join("") : '<div class="muted">No decisions logged yet.</div>';
+
+    document.getElementById("foot").textContent = "updated "+new Date().toLocaleTimeString()+" · auto-refresh 30s";
+  }catch(e){
+    err.innerHTML = '<div class="err">Could not reach the bot. It may be redeploying, or CORS not yet live. Retrying on next refresh.<br><code>'+esc(String(e))+'</code></div>';
+  }
+}
+load(); setInterval(load, 30000);
+</script>
+</body>
+</html>
