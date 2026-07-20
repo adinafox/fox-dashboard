@@ -60,6 +60,7 @@
   <div class="badges"><span id="mode" class="badge">…</span><span id="net" class="badge b-net">…</span><button onclick="load()">↻ Refresh</button></div>
 </header>
 <div id="err"></div>
+<div id="risk"></div>
 
 <div class="card">
   <h2>The pipeline · every webhook runs these five gates in order</h2>
@@ -113,6 +114,8 @@ async function load(){
     const mode=document.getElementById("mode");
     mode.textContent=reg.mode==="LIVE"?"● LIVE":"○ PAPER (dry-run)";mode.className="badge "+(reg.mode==="LIVE"?"b-live":"b-dry");
     document.getElementById("net").textContent=reg.network;
+    const flags=st.risk_flags||[];
+    document.getElementById("risk").innerHTML=flags.length?`<div class="err"><b>Position risk warning</b><br>${flags.map(esc).join("<br>")}</div>`:"";
 
     // gates
     const gp=st.gate_passed||{};
