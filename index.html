@@ -171,6 +171,23 @@ async function useLatestIds(){
   decisionInput.value = latestDecisionId;
   fetchReplay();
 }
+
+async function computeSignalIdJS(strategy, event, ticker, timeVal){
+  const raw = String(timeVal || "").trim();
+  const tm = parseInt(raw, 10);
+  let source;
+  if(!Number.isNaN(tm) && tm >= 1 && tm <= 1440 && String(tm) === raw){
+    const epoch = Math.floor(Date.now()/1000 / (tm * 60));
+    source = `bar:${tm}:${epoch}`;
+  }else{
+    source = `time:${raw}`;
+  }
+  const input = `${strategy}|${event}|${ticker}|${source}`;
+  const buf = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  const hex = Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  return hex.slice(0,16);
+}
 async function fetchReplay(){
   const signalId = document.getElementById("signalId").value.trim();
   const decisionId = document.getElementById("decisionId").value.trim();
@@ -256,11 +273,26 @@ async function load(){
     const recentStaged = audit.recent?.staged || [];
     const recentTrace = audit.recent?.trace || [];
     const summaryItem = (label, item) => item ? `<div class="check"><b class="ok">✓</b><div><b>${esc(label)}</b><small>${esc(item.payload?.strategy || item.signal?.strategy || item.strategy || 'unknown')} · ${esc(item.payload?.event || item.signal?.action || item.status || 'latest')}</small></div></div>` : '';
-    const latestSignal = audit.latest_signal_id || 'none';
-    const latestDecision = audit.latest_decision_id || 'none';
+    // resolve latest ids; if audit lacks a latest signal_id, compute a deterministic
+    // id client-side from the most recent staged signal so the "Use latest IDs" button still works.
+    const latestSignal = audit.latest_signal_id || null;
+    const latestDecision = audit.latest_decision_id || null;
+    let resolvedLatestSignal = latestSignal;
+    if(!resolvedLatestSignal){
+      const recentStagedList = audit.recent?.staged || [];
+      if(recentStagedList.length){
+        const s = recentStagedList[recentStagedList.length-1].signal || recentStagedList[0].signal || {};
+        if(s && s.strategy){
+          try{ resolvedLatestSignal = await computeSignalIdJS(s.strategy, s.event||'', s.ticker||'', s.time||''); }catch(e){ /* ignore */ }
+        }
+      }
+    }
+    const displayLatestSignal = resolvedLatestSignal || 'none';
+    const displayLatestDecision = latestDecision || 'none';
     document.getElementById("audit").innerHTML = `<div class="grid2"><div class="vstat"><b>${audit.counts.raw_signals||0}</b><span>raw signals</span></div><div class="vstat"><b>${audit.counts.staged||0}</b><span>decisions recorded</span></div><div class="vstat"><b>${audit.counts.trace||0}</b><span>trace entries</span></div></div><div style="margin-top:12px"><div class="check"><b class="ok">✓</b><div><b>Actions</b><small>${Object.entries(audit.actions||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div><div class="check"><b class="ok">✓</b><div><b>Gate status</b><small>${Object.entries(audit.gate_status||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div></div>`;
-    document.getElementById("latestIds").innerHTML = `<div class="latest-row"><div class="latest-pill"><strong>Latest signal_id</strong><br>${esc(latestSignal)}</div><div class="latest-pill"><strong>Latest decision_id</strong><br>${esc(latestDecision)}</div></div><div style="margin-top:10px"><button class="small-button" onclick="useLatestIds()">Use latest IDs</button></div>`;
-    latestSignalId = latestSignal === 'none' ? '' : latestSignal;
+    document.getElementById("latestIds").innerHTML = `<div class="latest-row"><div class="latest-pill"><strong>Latest signal_id</strong><br>${esc(displayLatestSignal)}</div><div class="latest-pill"><strong>Latest decision_id</strong><br>${esc(displayLatestDecision)}</div></div><div style="margin-top:10px"><button class="small-button" onclick="useLatestIds()">Use latest IDs</button></div>`;
+    latestSignalId = displayLatestSignal === 'none' ? '' : displayLatestSignal;
+    latestDecisionId = displayLatestDecision === 'none' ? '' : displayLatestDecision;
     latestDecisionId = latestDecision === 'none' ? '' : latestDecision;
     renderHistory(history);
     renderSnapshots(snapshots.snapshots || []);
