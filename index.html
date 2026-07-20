@@ -53,6 +53,9 @@
   .p-fund{background:rgba(59,167,255,.14);color:var(--accent)}
   .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--dim)}
   .err{background:rgba(255,92,108,.1);border:1px solid rgba(255,92,108,.4);color:var(--red);padding:12px;border-radius:10px}
+  .validation-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.vstat{background:#0f151d;border:1px solid var(--line);border-radius:9px;padding:11px}.vstat b{display:block;font-size:22px}.vstat span{color:var(--dim);font-size:11px}
+  .check{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.check:last-child{border:0}.check small{color:var(--dim);display:block;margin-top:1px}.ok{color:var(--green)}.no{color:var(--red)}.strategy-rule{padding:11px 0;border-bottom:1px solid var(--line)}.strategy-rule:last-child{border:0}.strategy-rule b{font-size:13px}.strategy-rule p{color:var(--dim);font-size:12px;margin:3px 0}.tag{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;color:var(--purple)}
+  @media(max-width:650px){.validation-grid{grid-template-columns:1fr 1fr}}
   code{color:var(--dim);font-size:11px}
 </style></head><body>
 <header>
@@ -63,13 +66,18 @@
 <div id="risk"></div>
 
 <div class="card">
-  <h2>The pipeline · every webhook runs these five gates in order</h2>
+  <h2>Live validation · can a new signal trade?</h2>
+  <div id="validation"><div class="muted">Loading current checks…</div></div>
+</div>
+
+<div class="card">
+  <h2>Historical processing funnel · reached by recent webhooks (not a live approval)</h2>
   <div class="pipe">
-    <div class="gate g1"><div class="gnum">1</div><div class="gname">VERIFY</div><div class="gdesc">Secret valid? Known strategy? Not a duplicate replay?</div><div class="gcount" id="g1">–<small> passed</small></div></div>
-    <div class="gate g2"><div class="gnum">2</div><div class="gname">DECIDE</div><div class="gdesc">Rules: funded · circuit breaker · ≤2 open · cooldown · counter-regime · size</div><div class="gcount" id="g2">–<small> passed</small></div></div>
-    <div class="gate g3"><div class="gnum">3</div><div class="gname">STAGE</div><div class="gdesc">Log the decision + reasoning before any order (audit trail)</div><div class="gcount" id="g3">–<small> passed</small></div></div>
-    <div class="gate g4"><div class="gnum">4</div><div class="gname">EXECUTE</div><div class="gdesc">Place the bracket order (entry + stop) on Hyperliquid</div><div class="gcount" id="g4">–<small> passed</small></div></div>
-    <div class="gate g5"><div class="gnum">5</div><div class="gname">CONFIRM</div><div class="gdesc">Record the fill — order id, price, size — into the position book</div><div class="gcount" id="g5">–<small> filled</small></div></div>
+    <div class="gate g1"><div class="gnum">1</div><div class="gname">SOURCE</div><div class="gdesc">Secret, strategy name, event format and replay key are checked.</div><div class="gcount" id="g1">–<small> reached</small></div></div>
+    <div class="gate g2"><div class="gnum">2</div><div class="gname">DECISION</div><div class="gdesc">The strategy rule decides whether to observe, block, open, close or flip.</div><div class="gcount" id="g2">–<small> reached</small></div></div>
+    <div class="gate g3"><div class="gnum">3</div><div class="gname">AUDIT</div><div class="gdesc">The decision and reason are recorded before an order is considered.</div><div class="gcount" id="g3">–<small> reached</small></div></div>
+    <div class="gate g4"><div class="gnum">4</div><div class="gname">EXCHANGE</div><div class="gdesc">An eligible signal requests an entry and protective stop.</div><div class="gcount" id="g4">–<small> reached</small></div></div>
+    <div class="gate g5"><div class="gnum">5</div><div class="gname">CONFIRMED</div><div class="gdesc">Only a confirmed result is written to the position book.</div><div class="gcount" id="g5">–<small> executed</small></div></div>
   </div>
 </div>
 
@@ -117,9 +125,17 @@ async function load(){
     const flags=st.risk_flags||[];
     document.getElementById("risk").innerHTML=flags.length?`<div class="err"><b>Position risk warning</b><br>${flags.map(esc).join("<br>")}</div>`:"";
 
+    // live validation (this is the decision aid; the funnel below is history only)
+    const v=st.validation||{},sum=v.summary||{},quality=v.timestamp_quality||{};
+    const stat=(n,label)=>`<div class="vstat"><b>${n??0}</b><span>${label}</span></div>`;
+    const checks=(v.global_checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join("");
+    const regime=(v.regimes||[]).map(r=>`<div class="check"><b class="ok">●</b><div><b>${esc(r.coin)} 1h regime: ${esc(r.side)}</b><small>${esc(r.explanation)} Last sensor alert: ${esc(r.last_sensor_alert||'not recorded')}.</small></div></div>`).join("")||'<div class="check"><b class="no">!</b><div><b>No regime registered</b><small>Counter-regime strategies remain blocked until the 1h sensor fires.</small></div></div>';
+    const rules=(v.strategies||[]).map(s=>`<div class="strategy-rule"><b>${esc(s.strategy)}</b><span class="tag">${esc(s.status)}</span><p>${esc(s.summary)}</p>${(s.checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`).join("");
+    document.getElementById("validation").innerHTML=`<div class="validation-grid">${stat(sum.received,'signals received')}${stat(sum.source_valid,'source checks passed')}${stat(sum.decisions_recorded,'decisions recorded')}${stat(sum.executed,'confirmed executions')}</div><div class="grid2" style="margin-top:14px"><div><h2 style="margin-top:0">Global safeguards</h2>${checks}</div><div><h2 style="margin-top:0">Regime logic, plainly</h2>${regime}<div class="check"><b class="${quality.timeframe?'no':'ok'}">${quality.timeframe?'!':'✓'}</b><div><b>Alert timestamps</b><small>${quality.timestamp||0} true timestamps · ${quality.timeframe||0} timeframe-only values · ${quality.missing||0} missing. Use {{timenow}} in Lux/TradingView alerts.</small></div></div></div></div><h2 style="margin-top:16px">Strategy-by-strategy eligibility</h2>${rules}`;
+
     // gates
     const gp=st.gate_passed||{};
-    for(let i=1;i<=5;i++){document.getElementById("g"+i).innerHTML=(gp[i]??0)+`<small> ${i===5?'filled':'passed'}</small>`;}
+    for(let i=1;i<=5;i++){document.getElementById("g"+i).innerHTML=(gp[i]??0)+`<small> ${i===5?'executed':'reached'}</small>`;}
 
     // trace
     const tr=(st.trace||[]).slice().reverse();
