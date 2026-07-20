@@ -54,6 +54,9 @@
   .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--dim)}
   .err{background:rgba(255,92,108,.1);border:1px solid rgba(255,92,108,.4);color:var(--red);padding:12px;border-radius:10px}
   .validation-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.vstat{background:#0f151d;border:1px solid var(--line);border-radius:9px;padding:11px}.vstat b{display:block;font-size:22px}.vstat span{color:var(--dim);font-size:11px}
+  .latest-row{display:flex;flex-wrap:wrap;gap:10px}
+  .latest-pill{background:rgba(59,167,255,.12);color:var(--accent);border:1px solid rgba(59,167,255,.4);border-radius:10px;padding:10px 12px;font-size:12px;word-break:break-all;flex:1 1 200px}
+  .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.input{flex:1 1 180px;background:#0f151d;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--txt);outline:none}.input:focus{border-color:var(--accent)}.small-button{background:var(--accent);color:#00121f;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.small-button:hover{opacity:.9}
   .check{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.check:last-child{border:0}.check small{color:var(--dim);display:block;margin-top:1px}.ok{color:var(--green)}.no{color:var(--red)}.strategy-rule{padding:11px 0;border-bottom:1px solid var(--line)}.strategy-rule:last-child{border:0}.strategy-rule b{font-size:13px}.strategy-rule p{color:var(--dim);font-size:12px;margin:3px 0}.tag{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;color:var(--purple)}.control{margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0f151d;display:flex;align-items:center;justify-content:space-between;gap:10px}.control p{font-size:11px;color:var(--dim);margin-top:2px}.toggle-on{border-color:rgba(46,204,113,.5);color:var(--green)}.toggle-off{border-color:rgba(245,185,66,.5);color:var(--amber)}.tip{cursor:help;color:var(--accent);font-size:14px;margin-left:4px}
   @media(max-width:650px){.validation-grid{grid-template-columns:1fr 1fr}}
   code{color:var(--dim);font-size:11px}
@@ -82,6 +85,38 @@
 </div>
 
 <div class="card">
+  <h2>Audit summary · replay diagnostics</h2>
+  <div id="audit"><div class="muted">Loading audit diagnostics…</div></div>
+</div>
+
+<div class="card">
+  <h2>Latest replay IDs</h2>
+  <div id="latestIds"><div class="muted">Loading latest replay IDs…</div></div>
+</div>
+
+<div class="card">
+  <h2>Signal history</h2>
+  <div id="history"><div class="muted">Loading recent signal history…</div></div>
+</div>
+
+<div class="card">
+  <h2>Market snapshots</h2>
+  <div id="snapshots"><div class="muted">Loading recent market snapshots…</div></div>
+</div>
+
+<div class="card">
+  <h2>Experiment registry</h2>
+  <div id="experiments"><div class="muted">Loading experiments…</div></div>
+</div>
+
+<div class="card">
+  <h2>Replay drill-down</h2>
+  <div class="form-row"><input id="signalId" placeholder="signal_id" class="input"><input id="decisionId" placeholder="decision_id" class="input"></div>
+  <div class="form-row"><button class="small-button" onclick="fetchReplay()">Fetch replay</button><span id="replay-hint" class="muted">Enter at least one identifier.</span></div>
+  <div id="replay" class="muted">No replay loaded.</div>
+</div>
+
+<div class="card">
   <h2>Live signal trace · how far each recent webhook travelled</h2>
   <div id="trace"><div class="muted">No webhooks yet.</div></div>
 </div>
@@ -105,6 +140,8 @@
 <script>
 const BOT="https://fox-bot-production.up.railway.app";
 let regimeFilterEnabled=true;
+let latestSignalId = "";
+let latestDecisionId = "";
 const fmt=n=>(n>=0?"+":"")+Number(n).toFixed(2);
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const GATEDESC={rejected:["rejected","o-rej","rej",1],regime:["regime set","o-reg","reg",2],
@@ -127,10 +164,79 @@ function flow(gate,status){
   for(let i=1;i<=5;i++){ h+=`<div class="seg ${i<=gate?cls:''}"></div>`; }
   return h;
 }
+async function useLatestIds(){
+  const signalInput = document.getElementById("signalId");
+  const decisionInput = document.getElementById("decisionId");
+  signalInput.value = latestSignalId;
+  decisionInput.value = latestDecisionId;
+  fetchReplay();
+}
+async function fetchReplay(){
+  const signalId = document.getElementById("signalId").value.trim();
+  const decisionId = document.getElementById("decisionId").value.trim();
+  const hint = document.getElementById("replay-hint");
+  const replay = document.getElementById("replay");
+  if(!signalId && !decisionId){
+    hint.textContent = "Enter at least one identifier.";
+    replay.innerHTML = "";
+    return;
+  }
+  hint.textContent = "Fetching replay...";
+  try{
+    const params = new URLSearchParams();
+    if(signalId) params.set("signal_id", signalId);
+    if(decisionId) params.set("decision_id", decisionId);
+    const data = await fetch(`${BOT}/replay?${params.toString()}`).then((r)=>r.json());
+    const rawCnt = data.raw_signals?.length || 0;
+    const stagedCnt = data.staged?.length || 0;
+    const traceCnt = data.trace?.length || 0;
+    const summary = `<div class="check"><b class="ok">✓</b><div><b>Replay result</b><small>${rawCnt} raw · ${stagedCnt} staged · ${traceCnt} trace</small></div></div>`;
+    const rawList = (data.raw_signals||[]).slice(-3).map((item)=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.payload?.strategy||'raw')}</b><small>${esc(item.payload?.event||item.payload?.time||'')}</small></div></div>`).join("");
+    const stagedList = (data.staged||[]).slice(-3).map((item)=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.action||'action')}</b><small>${esc(item.reason||'')}</small></div></div>`).join("");
+    replay.innerHTML = `${summary}${rawList}${stagedList}`;
+    hint.textContent = "Loaded replay data.";
+  }catch(e){
+    hint.textContent = "Failed to fetch replay.";
+    replay.innerHTML = `<div class="err">${esc(String(e))}</div>`;
+  }
+}
+function renderHistory(history){
+  const historyEl = document.getElementById("history");
+  if(!history || (!history.raw_signals.length && !history.staged.length && !history.trace.length)){
+    historyEl.innerHTML = '<div class="muted">No recent history available.</div>';
+    return;
+  }
+  const rawItems = history.raw_signals.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>Raw</b><small>${esc(item.payload?.strategy||'')}: ${esc(item.payload?.event||item.payload?.time||'')}</small></div></div>`).join("");
+  const stagedItems = history.staged.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.action||'')}</b><small>${esc(item.signal?.strategy||item.signal?.strategy||'')} · ${esc(item.reason||'')}</small></div></div>`).join("");
+  const traceItems = history.trace.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.strategy||'')}</b><small>${esc(item.status||'')} · ${esc(item.detail||'')}</small></div></div>`).join("");
+  historyEl.innerHTML = `<div class="check"><b class="ok">✓</b><div><b>History summary</b><small>${history.raw_signals.length} raw · ${history.staged.length} staged · ${history.trace.length} trace</small></div></div>${rawItems}${stagedItems}${traceItems}`;
+}
+function renderSnapshots(snapshots){
+  const snapEl = document.getElementById("snapshots");
+  if(!snapshots || !snapshots.length){
+    snapEl.innerHTML = '<div class="muted">No snapshots recorded yet.</div>';
+    return;
+  }
+  snapEl.innerHTML = snapshots.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.strategy||'')}</b><small>${esc(item.event||'')} · ${esc(item.t||'')}</small></div></div>`).join("");
+}
+function renderExperiments(experiments){
+  const expEl = document.getElementById("experiments");
+  if(!experiments || !experiments.length){
+    expEl.innerHTML = '<div class="muted">No experiments registered.</div>';
+    return;
+  }
+  expEl.innerHTML = experiments.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.id||'')}</b><small>${esc(item.name||'')} · ${esc(item.status||'')}</small></div></div>`).join("");
+}
 async function load(){
   const err=document.getElementById("err");err.innerHTML="";
   try{
-    const [reg,st]=await Promise.all([fetch(BOT+"/registry").then(r=>r.json()),fetch(BOT+"/status").then(r=>r.json())]);
+    const [reg,st,audit,history,snapshots,experiments]=await Promise.all([
+      fetch(BOT+"/registry").then(r=>r.json()),
+      fetch(BOT+"/status").then(r=>r.json()),
+      fetch(BOT+"/audit").then(r=>r.json()),
+      fetch(BOT+"/history?limit=8").then(r=>r.json()),
+      fetch(BOT+"/market-snapshots?limit=5").then(r=>r.json()),
+      fetch(BOT+"/experiments").then(r=>r.json())]);
     const mode=document.getElementById("mode");
     mode.textContent=reg.mode==="LIVE"?"● LIVE":"○ PAPER (dry-run)";mode.className="badge "+(reg.mode==="LIVE"?"b-live":"b-dry");
     document.getElementById("net").textContent=reg.network;
@@ -145,6 +251,20 @@ async function load(){
     const rules=(v.strategies||[]).map(s=>`<div class="strategy-rule"><b>${esc(s.strategy)}</b><span class="tag">${esc(s.status)}</span><p>${esc(s.summary)}</p>${(s.checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`).join("");
     const control=`<div class="control"><div><b>Counter-regime filter: ${regimeFilterEnabled?'ACTIVE':'PAUSED'}</b><span class="tip" title="When active, a BTC counter-regime strategy can only trade against the latest 1-hour regime sensor: 1h long allows short signals; 1h short allows long signals. The sensor itself never trades. Pausing this bypasses only this direction filter; all other safeguards remain active.">ⓘ</span><p>Requires the separate Railway DASHBOARD_TOKEN. The webhook secret is never stored in this dashboard.</p></div><button class="${regimeFilterEnabled?'toggle-on':'toggle-off'}" onclick="setRegimeFilter(${!regimeFilterEnabled})">${regimeFilterEnabled?'Pause filter':'Activate filter'}</button></div>`;
     document.getElementById("validation").innerHTML=`${control}<div class="validation-grid">${stat(sum.received,'signals received')}${stat(sum.source_valid,'source checks passed')}${stat(sum.decisions_recorded,'decisions recorded')}${stat(sum.executed,'confirmed executions')}</div><div class="grid2" style="margin-top:14px"><div><h2 style="margin-top:0">Global safeguards</h2>${checks}</div><div><h2 style="margin-top:0">Regime logic, plainly</h2>${regime}<div class="check"><b class="${quality.timeframe?'no':'ok'}">${quality.timeframe?'!':'✓'}</b><div><b>Alert timestamps</b><small>${quality.timestamp||0} true timestamps · ${quality.timeframe||0} timeframe-only values · ${quality.missing||0} missing. Use {{timenow}} in Lux/TradingView alerts.</small></div></div></div></div><h2 style="margin-top:16px">Strategy-by-strategy eligibility</h2>${rules}`;
+
+    const recentRaw = audit.recent?.raw_signals || [];
+    const recentStaged = audit.recent?.staged || [];
+    const recentTrace = audit.recent?.trace || [];
+    const summaryItem = (label, item) => item ? `<div class="check"><b class="ok">✓</b><div><b>${esc(label)}</b><small>${esc(item.payload?.strategy || item.signal?.strategy || item.strategy || 'unknown')} · ${esc(item.payload?.event || item.signal?.action || item.status || 'latest')}</small></div></div>` : '';
+    const latestSignal = audit.latest_signal_id || 'none';
+    const latestDecision = audit.latest_decision_id || 'none';
+    document.getElementById("audit").innerHTML = `<div class="grid2"><div class="vstat"><b>${audit.counts.raw_signals||0}</b><span>raw signals</span></div><div class="vstat"><b>${audit.counts.staged||0}</b><span>decisions recorded</span></div><div class="vstat"><b>${audit.counts.trace||0}</b><span>trace entries</span></div></div><div style="margin-top:12px"><div class="check"><b class="ok">✓</b><div><b>Actions</b><small>${Object.entries(audit.actions||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div><div class="check"><b class="ok">✓</b><div><b>Gate status</b><small>${Object.entries(audit.gate_status||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div></div>`;
+    document.getElementById("latestIds").innerHTML = `<div class="latest-row"><div class="latest-pill"><strong>Latest signal_id</strong><br>${esc(latestSignal)}</div><div class="latest-pill"><strong>Latest decision_id</strong><br>${esc(latestDecision)}</div></div><div style="margin-top:10px"><button class="small-button" onclick="useLatestIds()">Use latest IDs</button></div>`;
+    latestSignalId = latestSignal === 'none' ? '' : latestSignal;
+    latestDecisionId = latestDecision === 'none' ? '' : latestDecision;
+    renderHistory(history);
+    renderSnapshots(snapshots.snapshots || []);
+    renderExperiments(experiments.experiments || []);
 
     // gates
     const gp=st.gate_passed||{};
