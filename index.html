@@ -54,7 +54,7 @@
   .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--dim)}
   .err{background:rgba(255,92,108,.1);border:1px solid rgba(255,92,108,.4);color:var(--red);padding:12px;border-radius:10px}
   .validation-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.vstat{background:#0f151d;border:1px solid var(--line);border-radius:9px;padding:11px}.vstat b{display:block;font-size:22px}.vstat span{color:var(--dim);font-size:11px}
-  .check{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.check:last-child{border:0}.check small{color:var(--dim);display:block;margin-top:1px}.ok{color:var(--green)}.no{color:var(--red)}.strategy-rule{padding:11px 0;border-bottom:1px solid var(--line)}.strategy-rule:last-child{border:0}.strategy-rule b{font-size:13px}.strategy-rule p{color:var(--dim);font-size:12px;margin:3px 0}.tag{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;color:var(--purple)}
+  .check{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.check:last-child{border:0}.check small{color:var(--dim);display:block;margin-top:1px}.ok{color:var(--green)}.no{color:var(--red)}.strategy-rule{padding:11px 0;border-bottom:1px solid var(--line)}.strategy-rule:last-child{border:0}.strategy-rule b{font-size:13px}.strategy-rule p{color:var(--dim);font-size:12px;margin:3px 0}.tag{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;color:var(--purple)}.control{margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0f151d;display:flex;align-items:center;justify-content:space-between;gap:10px}.control p{font-size:11px;color:var(--dim);margin-top:2px}.toggle-on{border-color:rgba(46,204,113,.5);color:var(--green)}.toggle-off{border-color:rgba(245,185,66,.5);color:var(--amber)}.tip{cursor:help;color:var(--accent);font-size:14px;margin-left:4px}
   @media(max-width:650px){.validation-grid{grid-template-columns:1fr 1fr}}
   code{color:var(--dim);font-size:11px}
 </style></head><body>
@@ -104,10 +104,22 @@
 
 <script>
 const BOT="https://fox-bot-production.up.railway.app";
+let regimeFilterEnabled=true;
 const fmt=n=>(n>=0?"+":"")+Number(n).toFixed(2);
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const GATEDESC={rejected:["rejected","o-rej","rej",1],regime:["regime set","o-reg","reg",2],
   blocked:["blocked","o-blk","blk",3],noop:["no-op","o-noop","on",3],executed:["executed","o-exe","exe",5]};
+
+async function setRegimeFilter(enabled){
+  let token=sessionStorage.getItem("foxDashboardToken");
+  if(!token){token=window.prompt("Enter the Railway DASHBOARD_TOKEN to change the regime filter:");if(!token)return;sessionStorage.setItem("foxDashboardToken",token);}
+  try{
+    const r=await fetch(BOT+"/control/regime-filter",{method:"POST",headers:{"Content-Type":"application/json","X-Dashboard-Token":token},body:JSON.stringify({enabled})});
+    const data=await r.json();
+    if(!data.ok)throw new Error(data.error||"control rejected");
+    regimeFilterEnabled=data.regime_filter_enabled;load();
+  }catch(e){sessionStorage.removeItem("foxDashboardToken");alert("Could not change regime filter: "+e.message);}
+}
 
 function flow(gate,status){
   const cls = GATEDESC[status] ? GATEDESC[status][2] : "on";
@@ -126,12 +138,13 @@ async function load(){
     document.getElementById("risk").innerHTML=flags.length?`<div class="err"><b>Position risk warning</b><br>${flags.map(esc).join("<br>")}</div>`:"";
 
     // live validation (this is the decision aid; the funnel below is history only)
-    const v=st.validation||{},sum=v.summary||{},quality=v.timestamp_quality||{};
+    const v=st.validation||{},sum=v.summary||{},quality=v.timestamp_quality||{};regimeFilterEnabled=v.regime_filter_enabled!==false;
     const stat=(n,label)=>`<div class="vstat"><b>${n??0}</b><span>${label}</span></div>`;
     const checks=(v.global_checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join("");
     const regime=(v.regimes||[]).map(r=>`<div class="check"><b class="ok">●</b><div><b>${esc(r.coin)} 1h regime: ${esc(r.side)}</b><small>${esc(r.explanation)} Last sensor alert: ${esc(r.last_sensor_alert||'not recorded')}.</small></div></div>`).join("")||'<div class="check"><b class="no">!</b><div><b>No regime registered</b><small>Counter-regime strategies remain blocked until the 1h sensor fires.</small></div></div>';
     const rules=(v.strategies||[]).map(s=>`<div class="strategy-rule"><b>${esc(s.strategy)}</b><span class="tag">${esc(s.status)}</span><p>${esc(s.summary)}</p>${(s.checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`).join("");
-    document.getElementById("validation").innerHTML=`<div class="validation-grid">${stat(sum.received,'signals received')}${stat(sum.source_valid,'source checks passed')}${stat(sum.decisions_recorded,'decisions recorded')}${stat(sum.executed,'confirmed executions')}</div><div class="grid2" style="margin-top:14px"><div><h2 style="margin-top:0">Global safeguards</h2>${checks}</div><div><h2 style="margin-top:0">Regime logic, plainly</h2>${regime}<div class="check"><b class="${quality.timeframe?'no':'ok'}">${quality.timeframe?'!':'✓'}</b><div><b>Alert timestamps</b><small>${quality.timestamp||0} true timestamps · ${quality.timeframe||0} timeframe-only values · ${quality.missing||0} missing. Use {{timenow}} in Lux/TradingView alerts.</small></div></div></div></div><h2 style="margin-top:16px">Strategy-by-strategy eligibility</h2>${rules}`;
+    const control=`<div class="control"><div><b>Counter-regime filter: ${regimeFilterEnabled?'ACTIVE':'PAUSED'}</b><span class="tip" title="When active, a BTC counter-regime strategy can only trade against the latest 1-hour regime sensor: 1h long allows short signals; 1h short allows long signals. The sensor itself never trades. Pausing this bypasses only this direction filter; all other safeguards remain active.">ⓘ</span><p>Requires the separate Railway DASHBOARD_TOKEN. The webhook secret is never stored in this dashboard.</p></div><button class="${regimeFilterEnabled?'toggle-on':'toggle-off'}" onclick="setRegimeFilter(${!regimeFilterEnabled})">${regimeFilterEnabled?'Pause filter':'Activate filter'}</button></div>`;
+    document.getElementById("validation").innerHTML=`${control}<div class="validation-grid">${stat(sum.received,'signals received')}${stat(sum.source_valid,'source checks passed')}${stat(sum.decisions_recorded,'decisions recorded')}${stat(sum.executed,'confirmed executions')}</div><div class="grid2" style="margin-top:14px"><div><h2 style="margin-top:0">Global safeguards</h2>${checks}</div><div><h2 style="margin-top:0">Regime logic, plainly</h2>${regime}<div class="check"><b class="${quality.timeframe?'no':'ok'}">${quality.timeframe?'!':'✓'}</b><div><b>Alert timestamps</b><small>${quality.timestamp||0} true timestamps · ${quality.timeframe||0} timeframe-only values · ${quality.missing||0} missing. Use {{timenow}} in Lux/TradingView alerts.</small></div></div></div></div><h2 style="margin-top:16px">Strategy-by-strategy eligibility</h2>${rules}`;
 
     // gates
     const gp=st.gate_passed||{};
