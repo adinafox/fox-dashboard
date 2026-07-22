@@ -159,6 +159,12 @@
   .liqdist{font-size:10px;color:var(--dim);margin-top:2px;font-family:-apple-system,sans-serif}
   .coin-badge{display:inline-flex;align-items:center;gap:7px;font-weight:700}
   .coin-dot{width:8px;height:8px;border-radius:50%}
+  .pos-actions{display:flex;gap:6px}
+  .pos-btn{font-size:11px;font-weight:700;padding:5px 11px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:var(--tile);transition:background .12s,border-color .12s}
+  .pos-btn.trail{color:var(--accent);border-color:rgba(91,139,255,.4)}
+  .pos-btn.trail:hover{background:rgba(91,139,255,.12)}
+  .pos-btn.close{color:var(--red);border-color:rgba(255,95,110,.4)}
+  .pos-btn.close:hover{background:rgba(255,95,110,.12)}
   .strat-perf td,.strat-perf th{font-family:var(--mono)}
   .strat-perf td:first-child,.strat-perf th:first-child{font-family:inherit}
   .big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);letter-spacing:-.5px}
@@ -397,7 +403,7 @@
 
           <div class="card"><h2><span class="live-dot"></span>Open positions · Hyperliquid <span id="pos-count-chip" class="count-chip">0</span></h2>
             <div id="pos-summary"></div>
-            <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">P&amp;L</th><th class="num">ROE</th><th class="num">Liq. distance</th><th class="num">Lev.</th></tr></thead><tbody id="live-pos"></tbody></table></div>
+            <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Side</th><th class="num">Size</th><th class="num">Value</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">P&amp;L (ROE)</th><th class="num">Liq.</th><th class="num">Margin</th><th class="num">Funding</th><th class="num">Lev.</th><th>Manage</th></tr></thead><tbody id="live-pos"></tbody></table></div>
             <div id="live-pos-empty"></div>
           </div>
 
@@ -560,6 +566,28 @@ async function setTrailing(enabled){
   }catch(e){onControlError(e);}
 }
 
+async function closePosition(strategy,coin,size){
+  if(!strategy)return alert("This position isn't tracked by a bot strategy, so it can't be closed from here.");
+  if(!confirm(`Close ${coin} position?\n\nThis sends a reduce-only MARKET close for ${size} ${coin} on Hyperliquid. It cannot be undone.`))return;
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{
+    const r=await fetch(BOT+"/control/close-position",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({strategy,coin})});
+    const data=await r.json();
+    if(!data.ok)throw new Error(data.error||(data.result&&data.result.error)||"close rejected");
+    alert(`Closed ${coin}${data.result&&data.result.pnl!=null?` · realized ${fmt(data.result.pnl)}`:''}.`);
+    load();
+  }catch(e){onControlError(e);}
+}
+function trailPosition(strategy){
+  showPage('overview');
+  const sel=document.getElementById("trail-strategy");
+  if(sel&&strategy){sel.value=strategy;if(typeof updateTrailDiagram==='function')updateTrailDiagram();}
+  const wrap=document.getElementById("trailing-control");
+  const card=wrap&&wrap.closest('.card');
+  if(card){card.scrollIntoView({behavior:'smooth',block:'center'});
+    card.style.transition='box-shadow .3s';card.style.boxShadow='0 0 0 2px var(--accent)';
+    setTimeout(()=>{card.style.boxShadow='';},1600);}
+}
 function setTrailPreset(name){
   const p={conservative:[3,0.2,5,3],balanced:[5,0.2,8,5],aggressive:[8,0.3,12,8]}[name];
   if(!p)return;
@@ -902,19 +930,31 @@ async function load(){
         <div class="pos-sum"><small>Total notional</small><b>${usd(totNotional)}</b></div>
         <div class="pos-sum"><small>Unrealized P&amp;L</small><b class="${uCls}">${signedUsd(liveUnrealized)}</b></div>
         <div class="pos-sum"><small>Margin used</small><b>${totMargin?usd(totMargin):'—'}</b></div>`;
+      const bookByCoin={};Object.entries(st.positions||{}).forEach(([name,bp])=>{if(bp&&bp.coin)bookByCoin[bp.coin]=name;});
       document.getElementById("live-pos").innerHTML=live.map(p=>{
         const markPx=p.mark_px||(p.size?p.position_value/p.size:0);
         const roe=(p.return_on_equity!=null?p.return_on_equity:(p.leverage&&p.position_value?p.unrealized_pnl/(p.position_value/p.leverage)*100:null));
-        const roeBar=roe==null?'':`<div class="roebar"><i style="width:${Math.min(Math.abs(roe),100)}%;background:${roe>=0?'var(--green)':'var(--red)'}"></i></div>`;
-        let liqCell='—';
+        const roeCls=roe==null?'':(roe>=0?'pos':'neg');
+        // P&L (ROE) combined cell
+        const pnlCell=`<span class="${p.unrealized_pnl>=0?'pos':'neg'}">${fmt(p.unrealized_pnl)}</span>${roe!=null?`<div class="liqdist ${roeCls}">${fmt(roe)}%</div>`:''}`;
+        // liquidation
+        let liqCell='<span class="muted">N/A</span>';
         if(p.liquidation_px){
           const liq=Number(p.liquidation_px),distPct=markPx?Math.abs((markPx-liq)/markPx*100):null;
           const distColor=distPct==null?'var(--dim)':distPct>15?'var(--green)':distPct>5?'var(--amber)':'var(--red)';
           const health=distPct==null?'':`<div class="liqhealth"><i style="width:${Math.max(4,100-Math.min(distPct*3,100))}%;background:${distColor}"></i></div>`;
-          liqCell=`<span style="color:${distColor}">${distPct!=null?distPct.toFixed(1)+'% away':liq.toLocaleString()}</span><div class="liqdist">liq ${liq.toLocaleString()}</div>${health}`;
+          liqCell=`<span style="color:${distColor}">${liq.toLocaleString()}</span>${distPct!=null?`<div class="liqdist">${distPct.toFixed(1)}% away</div>`:''}${health}`;
         }
-        const roeCls=roe==null?'':(roe>=0?'pos':'neg');
-        return `<tr class="live-pos"><td><span class="coin-badge"><span class="coin-dot" style="background:${coinColor(p.coin)}"></span>${esc(p.coin)}</span></td><td><span class="pill ${p.side==='long'?'p-long':'p-short'}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${markPx?markPx.toLocaleString(undefined,{maximumFractionDigits:2}):'—'}</td><td class="num ${p.unrealized_pnl>=0?'pos':'neg'}">${fmt(p.unrealized_pnl)}</td><td class="num ${roeCls}">${roe!=null?fmt(roe)+'%':'—'}${roeBar}</td><td class="num">${liqCell}</td><td class="num">${p.leverage||'—'}×${p.margin_type?`<div class="liqdist">${esc(p.margin_type)}</div>`:''}</td></tr>`;
+        // funding (HL convention: sinceOpen paid shows negative)
+        const fund=-(p.funding_since_open||0);
+        const fundCell=`<span class="${fund>=0?'pos':'neg'}">${fund>=0?'+':'−'}$${Math.abs(fund).toFixed(2)}</span>`;
+        const marginCell=`${p.margin_used!=null?usd(p.margin_used):'—'}${p.margin_type?`<div class="liqdist">${esc(p.margin_type)}</div>`:''}`;
+        // manage actions (only when the bot tracks this coin as a strategy)
+        const strat=bookByCoin[p.coin]||'';
+        const acts=strat
+          ? `<div class="pos-actions"><button class="pos-btn trail" onclick="trailPosition('${esc(strat).replace(/'/g,"\\'")}')" title="Set a trailing stop for this position">Trail</button><button class="pos-btn close" onclick="closePosition('${esc(strat).replace(/'/g,"\\'")}','${esc(p.coin)}','${p.size}')" title="Market-close this position">Close</button></div>`
+          : `<span class="liqdist" title="Not tracked by a bot strategy">untracked</span>`;
+        return `<tr class="live-pos"><td><span class="coin-badge"><span class="coin-dot" style="background:${coinColor(p.coin)}"></span>${esc(p.coin)}</span></td><td><span class="pill ${p.side==='long'?'p-long':'p-short'}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${usd(p.position_value)}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${markPx?markPx.toLocaleString(undefined,{maximumFractionDigits:2}):'—'}</td><td class="num">${pnlCell}</td><td class="num">${liqCell}</td><td class="num">${marginCell}</td><td class="num">${fundCell}</td><td class="num">${p.leverage||'—'}×</td><td>${acts}</td></tr>`;
       }).join('');
     }else{
       posWrap.style.display='none';posSummary.style.display='none';posEmpty.style.display='block';
