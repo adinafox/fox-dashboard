@@ -3,172 +3,544 @@
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>fox-bot · live monitor</title>
 <style>
-  :root{--bg:#0b0f14;--card:#131a22;--line:#1f2a35;--txt:#e6edf3;--dim:#7d8b99;
-        --green:#2ecc71;--red:#ff5c6c;--amber:#f5b942;--accent:#3ba7ff;--purple:#a577ff}
+  :root{
+    --bg:#070910;--bg2:#0a0d15;--surface:#111621;--surface2:#171d2a;--tile:#0e1420;
+    --line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.11);--hair:rgba(255,255,255,.05);
+    --txt:#eef2f8;--dim:#8a97ab;--dim2:#5b6a7e;
+    --green:#2fd07a;--red:#ff5f6e;--amber:#f5b942;--accent:#5b8bff;--accent2:#7d6cff;--purple:#a577ff;
+    --grad:linear-gradient(135deg,#5b8bff 0%,#7d6cff 100%);
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sidebar-w:230px;--rail-w:292px}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:20px;max-width:1160px;margin:0 auto}
-  h1{font-size:20px;font-weight:700}.sub{color:var(--dim);font-size:12px;margin-top:2px}
-  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
-  .badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--line)}
-  .b-live{background:rgba(46,204,113,.12);color:var(--green);border-color:rgba(46,204,113,.4)}
+  html,body{height:100%}
+  body{background:
+        radial-gradient(1100px 520px at 78% -8%,rgba(91,139,255,.10) 0,transparent 60%),
+        radial-gradient(900px 500px at 0% 0%,rgba(125,108,255,.07) 0,transparent 55%),
+        var(--bg);
+        color:var(--txt);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        -webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+  .sub{color:var(--dim);font-size:12px;margin-top:2px}
+  .muted{color:var(--dim)}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  button{background:var(--surface2);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;font-family:inherit;transition:border-color .15s,background .15s,transform .05s}
+  button:hover{border-color:var(--line2);background:#1c2432}
+  button:active{transform:translateY(1px)}
+  select,input{font-family:inherit}
+
+  /* ---- shell ---- */
+  .shell{display:flex;min-height:100vh;max-width:1720px;margin:0 auto}
+  .sidebar{flex:0 0 var(--sidebar-w);width:var(--sidebar-w);position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;
+           padding:22px 14px;background:var(--bg2);border-right:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:800;padding:2px 8px 0;letter-spacing:-.02em}
+  .brand .logo{width:26px;height:26px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 4px 14px rgba(91,139,255,.35)}
+  .brand-sub{color:var(--dim2);font-size:10.5px;padding:6px 8px 20px;letter-spacing:.01em}
+  .nav-group{font-size:10px;text-transform:uppercase;letter-spacing:1.1px;color:var(--dim2);padding:16px 12px 7px;font-weight:600}
+  .nav-item{position:relative;display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;color:var(--dim);font-size:13.5px;font-weight:600;
+             cursor:pointer;margin-bottom:2px;transition:background .14s,color .14s;user-select:none}
+  .nav-item:hover{background:rgba(255,255,255,.04);color:var(--txt)}
+  .nav-item.active{background:linear-gradient(90deg,rgba(91,139,255,.18),rgba(91,139,255,.03));color:#d5e0ff}
+  .nav-item.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  .nav-icon{width:17px;text-align:center;font-size:14px;flex:0 0 auto;opacity:.9}
+
+  .content-col{flex:1;min-width:0;padding:20px 24px 40px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+  .crumb{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .crumb .crumb-brand{color:var(--dim);font-weight:600;font-size:14px}
+  .crumb .crumb-sep{margin:0 8px;color:var(--dim2);font-size:14px;font-weight:400}
+  .topbar-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .auth-area{display:flex;align-items:center;gap:8px}
+  .auth-user{font-size:12px;color:var(--green);background:rgba(47,208,122,.12);border:1px solid rgba(47,208,122,.35);border-radius:20px;padding:5px 11px;font-weight:600;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .auth-out{font-size:12px;padding:5px 11px}
+  .sync{font-size:11.5px;color:var(--dim2);display:flex;align-items:center;gap:6px}
+  .sync i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:pulse 2.4s infinite}
+  .badge{padding:5px 11px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid var(--line);letter-spacing:.01em}
+  .b-live{background:rgba(47,208,122,.12);color:var(--green);border-color:rgba(47,208,122,.4)}
   .b-dry{background:rgba(245,185,66,.12);color:var(--amber);border-color:rgba(245,185,66,.4)}
-  .b-net{background:rgba(59,167,255,.12);color:var(--accent);border-color:rgba(59,167,255,.4)}
-  button{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px}
-  button:hover{border-color:var(--accent)}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-bottom:14px;font-weight:600}
-  .grid2{display:grid;grid-template-columns:1fr;gap:16px}
-  @media(min-width:820px){.grid2{grid-template-columns:1fr 1fr}}
-  /* pipeline */
-  .pipe{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:4px}
-  .gate{flex:1;min-width:150px;background:#0f151d;border:1px solid var(--line);border-radius:10px;padding:12px;position:relative}
-  .gate+.gate{margin-left:22px}
-  .gate::after{content:"›";position:absolute;right:-19px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:22px;font-weight:700}
-  .gate:last-child::after{content:""}
-  .gnum{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#00121f;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
-  .gname{font-weight:700;font-size:13px;letter-spacing:.3px}
-  .gdesc{color:var(--dim);font-size:11px;margin-top:4px;min-height:44px}
-  .gcount{margin-top:8px;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
-  .gcount small{font-size:11px;color:var(--dim);font-weight:500}
-  .g1 .gnum{background:var(--accent)} .g2 .gnum{background:var(--purple)}
-  .g3 .gnum{background:var(--amber)} .g4 .gnum{background:#ff9a3c} .g5 .gnum{background:var(--green)}
-  /* trace */
-  .trace-row{display:grid;grid-template-columns:210px 1fr 92px;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
-  .trace-row:last-child{border-bottom:none}
-  .tr-name{font-size:12px}.tr-name b{font-weight:600}.tr-name span{color:var(--dim)}
-  .flow{display:flex;gap:4px}
-  .seg{flex:1;height:8px;border-radius:3px;background:#1a2430}
-  .seg.on{background:var(--accent)} .seg.rej{background:var(--red)}
-  .seg.blk{background:var(--amber)} .seg.exe{background:var(--green)} .seg.reg{background:var(--purple)}
-  .tr-out{font-size:11px;font-weight:600;text-align:right}
-  .o-rej{color:var(--red)}.o-blk{color:var(--amber)}.o-exe{color:var(--green)}.o-reg{color:var(--purple)}.o-noop{color:var(--dim)}
+  .b-net{background:rgba(91,139,255,.12);color:var(--accent);border-color:rgba(91,139,255,.4)}
+
+  .body-row{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+  .main-col{flex:1 1 600px;min-width:0}
+  .rail{flex:0 0 var(--rail-w);width:var(--rail-w)}
+  @media(max-width:1200px){.rail{flex:1 1 100%;width:100%}}
+
+  .page{display:none;animation:rise .35s ease both}
+  .page.active{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){.page{animation:none}}
+
+  /* ---- cards ---- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;margin-bottom:18px;
+        box-shadow:0 1px 0 0 var(--hair) inset,0 24px 48px -28px rgba(0,0,0,.7)}
+  .card h2{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);margin-bottom:16px;font-weight:700;
+           display:flex;align-items:center;gap:8px}
+  .card h2 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 9px 1px var(--green);animation:pulse 2.2s infinite}
+  .count-chip{margin-left:auto;background:var(--surface2);border:1px solid var(--line);color:var(--dim);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:0;text-transform:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @media (prefers-reduced-motion: reduce){.live-dot,.sync i{animation:none}}
+
+  .eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--dim);font-weight:700}
+  .section-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim2);margin:18px 0 10px;display:flex;align-items:center;gap:10px;font-weight:600}
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* ---- hero: balance + performance ---- */
+  .hero-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;margin-bottom:0}
+  @media(max-width:900px){.hero-grid{grid-template-columns:1fr}}
+  .card.balance{position:relative;overflow:hidden;border-color:rgba(91,139,255,.22);
+     background:radial-gradient(130% 130% at 0% 0%,rgba(91,139,255,.16),transparent 52%),
+                linear-gradient(180deg,rgba(125,108,255,.06),transparent 42%),var(--surface)}
+  .card.balance::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;
+     background:radial-gradient(circle,rgba(125,108,255,.16),transparent 70%);pointer-events:none}
+  .bal-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .balance-val{font-family:var(--mono);font-size:38px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.05;margin-top:8px}
+  .delta{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:9px;font-size:12.5px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+  .delta.up{background:rgba(47,208,122,.15);color:var(--green)}
+  .delta.down{background:rgba(255,95,110,.15);color:var(--red)}
+  .delta.flat{background:rgba(138,151,171,.14);color:var(--dim)}
+  .substats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:20px}
+  .substat{background:var(--tile);border:1px solid var(--line);border-radius:13px;padding:11px 12px}
+  .substat small{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .substat b{font-family:var(--mono);font-size:15.5px;font-variant-numeric:tabular-nums;font-weight:600}
+
+  .perf-val{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:6px}
+  .perf-sub{color:var(--dim);font-size:12.5px;margin-top:6px}
+  .meter{height:9px;border-radius:6px;background:rgba(255,95,110,.28);overflow:hidden;margin:16px 0 9px}
+  .meter i{display:block;height:100%;background:var(--green);border-radius:6px;transition:width .5s ease}
+  .meter-legend{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim)}
+  .meter-legend b{color:var(--txt);font-family:var(--mono)}
+
+  /* ---- bot posture ---- */
+  .posture{display:flex;gap:20px;align-items:stretch;flex-wrap:wrap}
+  .posture-state{flex:0 0 214px;background:var(--tile);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
+  .posture-state.long{border-color:rgba(47,208,122,.38);background:linear-gradient(160deg,rgba(47,208,122,.10),transparent 60%),var(--tile)}
+  .posture-state.short{border-color:rgba(255,95,110,.38);background:linear-gradient(160deg,rgba(255,95,110,.10),transparent 60%),var(--tile)}
+  .ps-dir{font-size:27px;font-weight:800;letter-spacing:-.5px;margin:6px 0 5px;line-height:1}
+  .posture-state.long .ps-dir{color:var(--green)}.posture-state.short .ps-dir{color:var(--red)}.posture-state.wait .ps-dir{color:var(--dim)}
+  .ps-src{color:var(--dim);font-size:11.5px}
+  .posture-controls{flex:1 1 300px;min-width:280px;display:flex;flex-direction:column;gap:14px;justify-content:center}
+  .pc-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .toggle-row{align-items:center;gap:12px}
+  .toggle-row .toggle-copy b{font-size:13px;display:block}
+  .toggle-row .toggle-copy small{color:var(--dim);font-size:11.5px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;background:var(--tile);border:1px solid var(--line);color:var(--dim)}
+  .chip.long{color:var(--green);border-color:rgba(47,208,122,.35)}
+  .chip.short{color:var(--red);border-color:rgba(255,95,110,.35)}
+
+  .toggle-switch{position:relative;display:inline-flex;align-items:center;width:44px;height:25px;flex:0 0 auto;cursor:pointer}
+  .toggle-switch .track{position:absolute;inset:0;background:#1a2230;border:1px solid var(--line);border-radius:24px;transition:background .18s,border-color .18s}
+  .toggle-switch .thumb{position:absolute;width:17px;height:17px;top:3px;left:3px;background:#8a97ab;border-radius:50%;transition:transform .18s,background .18s}
+  .toggle-switch.on .track{background:rgba(47,208,122,.2);border-color:rgba(47,208,122,.5)}
+  .toggle-switch.on .thumb{transform:translateX(19px);background:var(--green)}
+
+  .segmented{display:inline-flex;background:var(--tile);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+  .segmented button{border:none;background:transparent;color:var(--dim);padding:8px 15px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer}
+  .segmented button:hover{color:var(--txt);background:transparent}
+  .segmented button.active{background:var(--accent);color:#00102e}
+  .segmented button.active.seg-long{background:var(--green);color:#00160b}
+  .segmented button.active.seg-short{background:var(--red);color:#2a0508}
+
+  .chart-wrap{height:480px;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  @media(max-width:720px){.chart-wrap{height:340px}}
+
+  /* ---- tables ---- */
   table{width:100%;border-collapse:collapse}
-  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px}
-  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);font-size:13px}
+  tr:last-child td{border-bottom:none}
+  th{color:var(--dim2);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
   td.num{text-align:right;font-variant-numeric:tabular-nums}
-  .pill{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
-  .p-yes{background:rgba(46,204,113,.14);color:var(--green)}.p-wait{background:rgba(125,139,153,.16);color:var(--dim)}
-  .p-long{background:rgba(46,204,113,.14);color:var(--green)}.p-short{background:rgba(255,92,108,.14);color:var(--red)}
-  .p-fund{background:rgba(59,167,255,.14);color:var(--accent)}
-  .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}.pos{color:var(--green)}.neg{color:var(--red)}.muted{color:var(--dim)}
-  .err{background:rgba(255,92,108,.1);border:1px solid rgba(255,92,108,.4);color:var(--red);padding:12px;border-radius:10px}
-  .validation-grid{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px}.vstat{background:#0f151d;border:1px solid var(--line);border-radius:9px;padding:11px}.vstat b{display:block;font-size:22px}.vstat span{color:var(--dim);font-size:11px}
-  .latest-row{display:flex;flex-wrap:wrap;gap:10px}
-  .latest-pill{background:rgba(59,167,255,.12);color:var(--accent);border:1px solid rgba(59,167,255,.4);border-radius:10px;padding:10px 12px;font-size:12px;word-break:break-all;flex:1 1 200px}
-  .form-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.input{flex:1 1 180px;background:#0f151d;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--txt);outline:none}.input:focus{border-color:var(--accent)}.small-button{background:var(--accent);color:#00121f;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.small-button:hover{opacity:.9}.trail-form{display:grid;grid-template-columns:2fr repeat(4,minmax(88px,1fr));gap:8px;margin-top:10px}.trail-form .input{min-width:0;width:100%;padding:8px}.trail-label{font-size:10px;color:var(--dim);display:block;margin:0 0 3px 2px}.trail-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}@media(max-width:760px){.trail-form{grid-template-columns:1fr 1fr}.trail-form>div:first-child{grid-column:1/-1}}
-  .check{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}.check:last-child{border:0}.check small{color:var(--dim);display:block;margin-top:1px}.ok{color:var(--green)}.no{color:var(--red)}.strategy-rule{padding:11px 0;border-bottom:1px solid var(--line)}.strategy-rule:last-child{border:0}.strategy-rule b{font-size:13px}.strategy-rule p{color:var(--dim);font-size:12px;margin:3px 0}.tag{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-left:6px;color:var(--purple)}.control{margin:12px 0;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0f151d;display:flex;align-items:center;justify-content:space-between;gap:10px}.control p{font-size:11px;color:var(--dim);margin-top:2px}.toggle-on{border-color:rgba(46,204,113,.5);color:var(--green)}.toggle-off{border-color:rgba(245,185,66,.5);color:var(--amber)}.tip{cursor:help;color:var(--accent);font-size:14px;margin-left:4px}.regime-graph{display:grid;grid-template-columns:1fr 54px 1fr;align-items:center;gap:8px;padding:13px 0}.regime-node{border:1px solid var(--line);border-radius:10px;padding:10px;background:#101720;text-align:center}.regime-node.active-long{border-color:var(--green);box-shadow:inset 0 0 18px rgba(46,204,113,.12)}.regime-node.active-short{border-color:var(--red);box-shadow:inset 0 0 18px rgba(255,92,108,.12)}.regime-node small{display:block;color:var(--dim);font-size:10px}.regime-arrow{text-align:center;color:var(--accent);font-size:22px}.regime-choice{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+  .live-pos td{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .live-pos:hover td,tbody tr:hover td{background:rgba(255,255,255,.02)}
+  .pill{padding:3px 9px;border-radius:7px;font-size:11px;font-weight:700}
+  .p-yes{background:rgba(47,208,122,.14);color:var(--green)}.p-wait{background:rgba(138,151,171,.16);color:var(--dim)}
+  .p-long{background:rgba(47,208,122,.14);color:var(--green)}.p-short{background:rgba(255,95,110,.14);color:var(--red)}
+  .p-fund{background:rgba(91,139,255,.14);color:var(--accent)}
+  .roebar{height:4px;border-radius:2px;background:#1a2230;overflow:hidden;margin-top:4px;width:64px}
+  .roebar i{display:block;height:100%;border-radius:2px}
+  .liqdist{font-size:10px;color:var(--dim);margin-top:2px;font-family:-apple-system,sans-serif}
+  .coin-badge{display:inline-flex;align-items:center;gap:7px;font-weight:700}
+  .coin-dot{width:8px;height:8px;border-radius:50%}
+  .strat-perf td,.strat-perf th{font-family:var(--mono)}
+  .strat-perf td:first-child,.strat-perf th:first-child{font-family:inherit}
+  .big{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono);letter-spacing:-.5px}
+  .pos{color:var(--green)}.neg{color:var(--red)}
+
+  .grid2{display:grid;grid-template-columns:1fr;gap:18px}
+  @media(min-width:700px){.grid2{grid-template-columns:1fr 1fr}}
+
+  /* ---- rail widgets ---- */
+  .act{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .act:last-child{border-bottom:none}
+  .act:first-child{padding-top:2px}
+  .act-dot{width:9px;height:9px;border-radius:50%;background:currentColor;margin-top:4px;flex:0 0 auto;box-shadow:0 0 8px 0 currentColor}
+  .act-body{flex:1;min-width:0}
+  .act-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .act-name{font-size:12.5px;font-weight:700;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .act-time{font-size:10.5px;color:var(--dim2);flex:0 0 auto;font-family:var(--mono)}
+  .act-sub{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .act-dir{font-size:11px;color:var(--dim)}
+  .act-pill{font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.4px}
+  .act-pill.exe{background:rgba(47,208,122,.14);color:var(--green)}
+  .act-pill.blk{background:rgba(245,185,66,.14);color:var(--amber)}
+  .act-pill.rej{background:rgba(255,95,110,.14);color:var(--red)}
+  .act-pill.reg{background:rgba(165,119,255,.14);color:var(--purple)}
+  .act-pill.noop{background:rgba(138,151,171,.14);color:var(--dim)}
+  .safeguard{display:flex;gap:9px;padding:9px 0;border-top:1px solid var(--line);font-size:12px}
+  .safeguard b.ico{font-size:13px;flex:0 0 auto}
+  .safeguard small{color:var(--dim);display:block;margin-top:1px}
+  .latest-pill{background:var(--tile);color:var(--accent);border:1px solid rgba(91,139,255,.3);border-radius:12px;padding:11px 13px;font-size:12px;word-break:break-all;margin-bottom:9px}
+  .latest-pill strong{color:var(--dim);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+  .latest-pill span{font-family:var(--mono)}
+
+  /* ---- pipeline funnel ---- */
+  .pipe{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:4px}
+  .gate{flex:1;min-width:150px;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:13px;position:relative}
+  .gate+.gate{margin-left:22px}
+  .gate::after{content:"›";position:absolute;right:-19px;top:50%;transform:translateY(-50%);color:var(--dim2);font-size:22px;font-weight:700}
+  .gate:last-child::after{content:""}
+  .gnum{width:23px;height:23px;border-radius:50%;color:#00102e;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;margin-bottom:9px}
+  .gname{font-weight:800;font-size:13px;letter-spacing:.3px}
+  .gdesc{color:var(--dim);font-size:11px;margin-top:5px;min-height:44px}
+  .gcount{margin-top:9px;font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .gcount small{font-size:11px;color:var(--dim);font-weight:500;font-family:-apple-system,sans-serif}
+  .g1 .gnum{background:var(--accent)}.g2 .gnum{background:var(--purple)}.g3 .gnum{background:var(--amber)}.g4 .gnum{background:#ff9a3c}.g5 .gnum{background:var(--green)}
+
+  /* ---- trace ---- */
+  .trace-row{display:grid;grid-template-columns:220px 1fr 92px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+  .trace-row:last-child{border-bottom:none}
+  .tr-name{font-size:12px}.tr-name b{font-weight:700}.tr-name span{color:var(--dim)}.tr-name code{color:var(--dim2);font-size:10.5px;font-family:var(--mono)}
+  .flow{display:flex;gap:4px}
+  .seg{flex:1;height:8px;border-radius:3px;background:#1a2230}
+  .seg.on{background:var(--accent)}.seg.rej{background:var(--red)}.seg.blk{background:var(--amber)}.seg.exe{background:var(--green)}.seg.reg{background:var(--purple)}
+  .tr-out{font-size:11px;font-weight:700;text-align:right}
+  .o-rej{color:var(--red)}.o-blk{color:var(--amber)}.o-exe{color:var(--green)}.o-reg{color:var(--purple)}.o-noop{color:var(--dim)}
+
+  .err{background:rgba(255,95,110,.1);border:1px solid rgba(255,95,110,.4);color:var(--red);padding:12px 14px;border-radius:12px;margin-bottom:16px;font-size:13px}
+  .validation-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .vstat{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:13px}.vstat b{display:block;font-size:23px;font-family:var(--mono);font-weight:700}.vstat span{color:var(--dim);font-size:11px}
+  .input{background:var(--tile);border:1px solid var(--line);border-radius:11px;padding:10px 12px;color:var(--txt);outline:none;font-size:13px}
+  .input:focus{border-color:var(--accent)}
+  .form-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}.form-row .input{flex:1 1 180px}
+  .small-button{background:var(--grad);color:#fff;border:none;border-radius:11px;padding:10px 16px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px -6px rgba(91,139,255,.6)}
+  .small-button:hover{filter:brightness(1.08);border:none;background:var(--grad)}
+  .trail-form{display:grid;grid-template-columns:2fr repeat(4,minmax(88px,1fr));gap:9px;margin-top:6px}
+  .trail-form .input{min-width:0;width:100%;padding:9px}
+  .trail-label{font-size:10px;color:var(--dim);display:block;margin:0 0 4px 2px;text-transform:uppercase;letter-spacing:.4px}
+  .trail-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:14px}
+  @media(max-width:760px){.trail-form{grid-template-columns:1fr 1fr}.trail-form>div:first-child{grid-column:1/-1}}
+  .check{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}.check:last-child{border:0}.check small{color:var(--dim);display:block;margin-top:1px}.ok{color:var(--green)}.no{color:var(--red)}
+  .strategy-rule{padding:13px 0;border-bottom:1px solid var(--line)}.strategy-rule:last-child{border:0}.strategy-rule b{font-size:13.5px}.strategy-rule p{color:var(--dim);font-size:12px;margin:4px 0}.tag{font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin-left:8px;color:var(--purple);font-weight:700}
+  .tip{cursor:help;color:var(--accent);font-size:13px;margin-left:5px}
+  .regime-graph{display:grid;grid-template-columns:1fr 54px 1fr;align-items:center;gap:9px;padding:13px 0}
+  .regime-node{border:1px solid var(--line);border-radius:12px;padding:11px;background:var(--tile);text-align:center}
+  .regime-node.active-long{border-color:rgba(47,208,122,.45);box-shadow:inset 0 0 20px rgba(47,208,122,.1)}
+  .regime-node.active-short{border-color:rgba(255,95,110,.45);box-shadow:inset 0 0 20px rgba(255,95,110,.1)}
+  .regime-node small{display:block;color:var(--dim);font-size:10px}.regime-arrow{text-align:center;color:var(--accent);font-size:22px}
   @media(max-width:650px){.validation-grid{grid-template-columns:1fr 1fr}}
   code{color:var(--dim);font-size:11px}
-</style></head><body>
-<header>
-  <div><h1>🦊 fox-bot · live monitor</h1><div class="sub">LuxAlgo → fox-bot → Hyperliquid · the five-gate pipeline, live</div></div>
-  <div class="badges"><span id="mode" class="badge">…</span><span id="net" class="badge b-net">…</span><button onclick="load()">↻ Refresh</button></div>
-</header>
-<div id="err"></div>
-<div id="risk"></div>
 
-<div class="card">
-  <h2>Live validation · can a new signal trade?</h2>
-  <div id="validation"><div class="muted">Loading current checks…</div></div>
-</div>
+  /* ---- posture + market row ---- */
+  .posture-row{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:18px;align-items:start}
+  .posture-row>.card{margin-bottom:0}
+  @media(max-width:1040px){.posture-row{grid-template-columns:1fr}}
+  .market-card{display:flex;flex-direction:column}
+  .corr-wrap{flex:1 1 auto;min-height:0;border-radius:12px;overflow:hidden}
+  @media(max-width:1040px){.corr-wrap{min-height:340px}}
+  .corr-wrap::-webkit-scrollbar{width:6px}
+  .corr-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:3px}
+  .corr-wrap::-webkit-scrollbar-track{background:transparent}
+  .corr-wrap{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.13) transparent}
+  .markets-list{display:flex;flex-direction:column}
+  .mkt-row{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line)}
+  .mkt-row:last-child{border-bottom:none}
+  .mkt-ico{width:34px;height:34px;border-radius:50%;flex:0 0 auto;position:relative;overflow:hidden;background:var(--tile)}
+  .mkt-ico img{width:100%;height:100%;object-fit:cover;display:block;position:relative;z-index:1}
+  .mkt-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff}
+  .mkt-name{flex:1;min-width:0}
+  .mkt-name b{font-size:14px;font-weight:700;display:block;line-height:1.25}
+  .mkt-name small{color:var(--dim);font-size:11.5px}
+  .mkt-quote{text-align:right}
+  .mkt-quote b{font-family:var(--mono);font-size:14px;font-weight:700;display:block;font-variant-numeric:tabular-nums}
+  .mkt-quote small{font-family:var(--mono);font-size:11.5px;font-weight:600}
 
-<div class="card">
-  <h2>Historical processing funnel · reached by recent webhooks (not a live approval)</h2>
-  <div class="pipe">
-    <div class="gate g1"><div class="gnum">1</div><div class="gname">SOURCE</div><div class="gdesc">Secret, strategy name, event format and replay key are checked.</div><div class="gcount" id="g1">–<small> reached</small></div></div>
-    <div class="gate g2"><div class="gnum">2</div><div class="gname">DECISION</div><div class="gdesc">The strategy rule decides whether to observe, block, open, close or flip.</div><div class="gcount" id="g2">–<small> reached</small></div></div>
-    <div class="gate g3"><div class="gnum">3</div><div class="gname">AUDIT</div><div class="gdesc">The decision and reason are recorded before an order is considered.</div><div class="gcount" id="g3">–<small> reached</small></div></div>
-    <div class="gate g4"><div class="gnum">4</div><div class="gname">EXCHANGE</div><div class="gdesc">An eligible signal requests an entry and protective stop.</div><div class="gcount" id="g4">–<small> reached</small></div></div>
-    <div class="gate g5"><div class="gnum">5</div><div class="gname">CONFIRMED</div><div class="gdesc">Only a confirmed result is written to the position book.</div><div class="gcount" id="g5">–<small> executed</small></div></div>
+  /* ---- regime chart ---- */
+  .rg-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .rg-legends{display:flex;gap:16px;flex-wrap:wrap}
+  .rg-legend{font-size:11.5px;color:var(--dim);display:inline-flex;align-items:center;gap:6px;font-weight:600}
+  .rg-legend i{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent}
+  .rg-legend i.up{border-bottom:9px solid var(--green)}
+  .rg-legend i.down{border-top:9px solid var(--red)}
+  .regime-chart{height:380px;width:100%;position:relative}
+  @media(max-width:720px){.regime-chart{height:300px}}
+
+  /* ---- performance donut ---- */
+  .perf-flex{display:flex;gap:22px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .donut{position:relative;width:106px;height:106px;border-radius:50%;flex:0 0 auto}
+  .donut-hole{position:absolute;inset:14px;background:var(--surface);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .donut-hole b{font-family:var(--mono);font-size:23px;font-weight:700;line-height:1}
+  .donut-hole small{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);margin-top:3px}
+
+  /* ---- diverging P&L bars ---- */
+  .pnl-legend{display:flex;gap:16px;font-size:11px;color:var(--dim);margin-bottom:12px}
+  .pnl-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .pnlbar-row{display:grid;grid-template-columns:minmax(120px,1.25fr) 2fr minmax(70px,auto);gap:14px;align-items:center;padding:7px 0}
+  .pnlbar-name{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pnlbar-track{position:relative;height:24px;background:var(--tile);border-radius:7px;border:1px solid var(--line)}
+  .pnlbar-zero{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2)}
+  .pnlbar-fill{position:absolute;top:4px;bottom:4px;border-radius:5px;min-width:3px;transition:width .5s ease}
+  .pnlbar-fill.pos{left:50%;background:linear-gradient(90deg,rgba(47,208,122,.5),var(--green))}
+  .pnlbar-fill.neg{right:50%;background:linear-gradient(270deg,rgba(255,95,110,.5),var(--red))}
+  .pnlbar-val{text-align:right;font-family:var(--mono);font-size:13px;font-weight:700}
+
+  /* ---- position summary + empty ---- */
+  .pos-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+  .pos-sum{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .pos-sum small{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .pos-sum b{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums}
+  .empty-state{text-align:center;padding:34px 16px}
+  .empty-state .es-icon{font-size:30px;opacity:.35;margin-bottom:10px}
+  .empty-state b{display:block;color:var(--txt);font-size:14px;margin-bottom:4px;font-weight:700}
+  .empty-state span{color:var(--dim);font-size:12.5px}
+  .liqhealth{height:4px;border-radius:2px;background:#1a2230;overflow:hidden;margin-top:4px;width:60px;margin-left:auto}
+  .liqhealth i{display:block;height:100%;border-radius:2px}
+
+  /* ---- trailing: presets + diagram ---- */
+  .preset-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .preset-row .pr-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
+  .preset-btn{padding:7px 13px;border-radius:9px;font-size:12px;font-weight:600;background:var(--tile);border:1px solid var(--line);color:var(--dim);cursor:pointer}
+  .preset-btn:hover{color:var(--txt);border-color:var(--line2);background:var(--surface2)}
+  .trail-badges{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 16px}
+  .trail-badge{font-size:11px;font-weight:600;padding:5px 11px;border-radius:20px;background:rgba(47,208,122,.12);color:var(--green);border:1px solid rgba(47,208,122,.3)}
+  .trail-diagram{position:relative;height:66px;margin:18px 4px 6px}
+  .trail-rail{position:absolute;left:0;right:0;top:38px;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--dim2),var(--green))}
+  .trail-mark{position:absolute;top:26px;transform:translateX(-50%);text-align:center;width:0}
+  .trail-mark .dot{width:13px;height:13px;border-radius:50%;border:2px solid var(--surface);margin:0 auto;position:relative;z-index:2}
+  .trail-mark .lbl{position:absolute;top:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;color:var(--dim);font-weight:600}
+  .trail-mark .val{position:absolute;top:18px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-family:var(--mono);color:var(--txt);font-weight:600}
+  .trail-caption{font-size:12px;color:var(--dim);margin-bottom:14px}
+  .trail-caption b{color:var(--txt);font-family:var(--mono)}
+
+  /* mobile: sidebar → horizontal tab strip */
+  @media(max-width:880px){
+    .shell{flex-direction:column}
+    .sidebar{position:static;width:100%;height:auto;flex:none;border-right:none;border-bottom:1px solid var(--line);
+             display:flex;align-items:center;gap:5px;overflow-x:auto;padding:12px 14px;white-space:nowrap}
+    .brand{padding:0 12px 0 0}.brand-sub,.nav-group{display:none}.nav-item{margin-bottom:0}
+    .nav-item.active::before{display:none}
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head><body>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">🦊</span><span>fox-bot</span></div>
+    <div class="brand-sub">LuxAlgo → fox-bot → Hyperliquid</div>
+    <nav>
+      <div class="nav-group">Trading</div>
+      <div class="nav-item active" data-page="overview" onclick="showPage('overview')"><span class="nav-icon">◆</span>Overview</div>
+      <div class="nav-item" data-page="positions" onclick="showPage('positions')"><span class="nav-icon">◈</span>Positions &amp; P&amp;L</div>
+      <div class="nav-group">Signals</div>
+      <div class="nav-item" data-page="pipeline" onclick="showPage('pipeline')"><span class="nav-icon">⇄</span>Pipeline &amp; webhooks</div>
+      <div class="nav-item" data-page="risk" onclick="showPage('risk')"><span class="nav-icon">⚑</span>Strategy eligibility</div>
+      <div class="nav-group">System</div>
+      <div class="nav-item" data-page="audit" onclick="showPage('audit')"><span class="nav-icon">▤</span>Audit &amp; replay</div>
+    </nav>
+  </aside>
+
+  <div class="content-col">
+    <div class="topbar">
+      <div class="crumb"><span class="crumb-brand">fox-bot</span><span class="crumb-sep">/</span><span id="crumb-current">Overview</span></div>
+      <div class="topbar-actions">
+        <span id="auth-area" class="auth-area"></span>
+        <span class="sync"><i></i><span id="synced">syncing…</span></span>
+        <span id="mode" class="badge">…</span><span id="net" class="badge b-net">…</span>
+        <button onclick="load()" title="Refresh">↻</button>
+      </div>
+    </div>
+
+    <div id="err"></div>
+    <div id="risk-banner"></div>
+
+    <div class="body-row">
+      <main class="main-col">
+
+        <section class="page active" data-page="overview">
+          <div class="hero-grid">
+            <div class="card balance"><div id="balance"><div class="muted">Loading account…</div></div></div>
+            <div class="card"><div id="performance"><div class="muted">Loading performance…</div></div></div>
+          </div>
+
+          <div class="posture-row">
+            <div class="card"><h2>Bot posture · BTC direction control</h2><div id="posture"><div class="muted">Loading controls…</div></div></div>
+            <div class="card market-card"><h2><span class="live-dot"></span>Markets · live</h2>
+              <div class="corr-wrap" style="overflow:auto"><div id="markets-list" class="markets-list"><div class="muted">Loading markets…</div></div></div>
+            </div>
+          </div>
+
+          <div class="card"><h2><span class="live-dot"></span>BTC regime · live chart</h2>
+            <div class="rg-controls">
+              <div class="segmented" id="rg-tf">
+                <button data-tf="15m" onclick="setRegimeTf('15m')">15m</button>
+                <button data-tf="1h" class="active" onclick="setRegimeTf('1h')">1H</button>
+                <button data-tf="4h" onclick="setRegimeTf('4h')">4H</button>
+                <button data-tf="1d" onclick="setRegimeTf('1d')">1D</button>
+              </div>
+              <div class="rg-legends">
+                <span class="rg-legend"><i class="up"></i>1H/4H regime → long</span>
+                <span class="rg-legend"><i class="down"></i>1H/4H regime → short</span>
+              </div>
+            </div>
+            <div id="regime-chart" class="regime-chart"></div>
+            <div id="regime-chart-note" class="sub" style="margin-top:10px">Loading BTC candles…</div>
+          </div>
+
+          <div class="card"><h2><span class="live-dot"></span>Open positions · Hyperliquid <span id="pos-count-chip" class="count-chip">0</span></h2>
+            <div id="pos-summary"></div>
+            <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">P&amp;L</th><th class="num">ROE</th><th class="num">Liq. distance</th><th class="num">Lev.</th></tr></thead><tbody id="live-pos"></tbody></table></div>
+            <div id="live-pos-empty"></div>
+          </div>
+
+          <div class="card"><h2>Trailing stop control</h2><div id="trailing-control"><div class="muted">Loading…</div></div></div>
+        </section>
+
+        <section class="page" data-page="positions">
+          <div class="card"><h2>Strategy P&amp;L · realized by strategy</h2>
+            <div class="pnl-legend"><span><i style="background:var(--green)"></i>Profit</span><span><i style="background:var(--red)"></i>Loss</span><span style="color:var(--dim2)">bars diverge from the zero line</span></div>
+            <div id="strat-pnl"><div class="muted">Loading…</div></div>
+          </div>
+          <div class="card"><h2>Strategy performance · detail</h2><div id="strat-perf-wrap"><div class="muted">Loading…</div></div></div>
+          <div class="grid2">
+            <div class="card"><h2>Position book · internal tracking</h2>
+              <table><thead><tr><th>Strategy</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Stop</th></tr></thead><tbody id="pos"></tbody></table>
+              <div id="pos-empty" class="muted" style="padding:8px 0">No open positions.</div></div>
+            <div class="card"><h2>Month-to-date P&amp;L (realized)</h2>
+              <div id="pnl" class="big">—</div><div class="sub" id="pnl-month"></div>
+              <div class="sub" style="margin-top:12px">Regime sensor: <span id="regime" class="muted">—</span></div></div>
+          </div>
+        </section>
+
+        <section class="page" data-page="pipeline">
+          <div class="card"><h2>Pipeline health · recent webhooks</h2><div id="pipeline-status"><div class="muted">Loading…</div></div></div>
+          <div class="card">
+            <h2>Processing funnel · reached by recent webhooks (not a live approval)</h2>
+            <div class="pipe">
+              <div class="gate g1"><div class="gnum">1</div><div class="gname">SOURCE</div><div class="gdesc">Secret, strategy name, event format and replay key are checked.</div><div class="gcount" id="g1">–<small> reached</small></div></div>
+              <div class="gate g2"><div class="gnum">2</div><div class="gname">DECISION</div><div class="gdesc">The strategy rule decides whether to observe, block, open, close or flip.</div><div class="gcount" id="g2">–<small> reached</small></div></div>
+              <div class="gate g3"><div class="gnum">3</div><div class="gname">AUDIT</div><div class="gdesc">The decision and reason are recorded before an order is considered.</div><div class="gcount" id="g3">–<small> reached</small></div></div>
+              <div class="gate g4"><div class="gnum">4</div><div class="gname">EXCHANGE</div><div class="gdesc">An eligible signal requests an entry and protective stop.</div><div class="gcount" id="g4">–<small> reached</small></div></div>
+              <div class="gate g5"><div class="gnum">5</div><div class="gname">CONFIRMED</div><div class="gdesc">Only a confirmed result is written to the position book.</div><div class="gcount" id="g5">–<small> executed</small></div></div>
+            </div>
+          </div>
+          <div class="card"><h2>Live signal trace · how far each recent webhook travelled</h2><div id="trace"><div class="muted">No webhooks yet.</div></div></div>
+          <div class="card"><h2>Strategies &amp; webhook status</h2>
+            <table><thead><tr><th>Strategy</th><th>Coin</th><th>Role</th><th>Webhook</th><th class="num">Recv</th><th>Last seen</th></tr></thead><tbody id="strats"></tbody></table>
+          </div>
+        </section>
+
+        <section class="page" data-page="risk">
+          <div class="card"><h2>Global safeguards</h2><div id="safeguards"><div class="muted">Loading…</div></div></div>
+          <div class="card"><h2>Strategy eligibility · signal-by-signal rules</h2><div id="eligibility"><div class="muted">Loading current checks…</div></div></div>
+        </section>
+
+        <section class="page" data-page="audit">
+          <div class="card"><h2>Audit summary · replay diagnostics</h2><div id="audit"><div class="muted">Loading…</div></div></div>
+          <div class="grid2">
+            <div class="card"><h2>Signal history</h2><div id="history"><div class="muted">Loading…</div></div></div>
+            <div class="card"><h2>Market snapshots</h2><div id="snapshots"><div class="muted">Loading…</div></div></div>
+          </div>
+          <div class="card"><h2>Experiment registry</h2><div id="experiments"><div class="muted">Loading…</div></div></div>
+          <div class="card"><h2>Replay drill-down</h2>
+            <div class="form-row"><input id="signalId" placeholder="signal_id" class="input"><input id="decisionId" placeholder="decision_id" class="input"></div>
+            <div class="form-row"><button class="small-button" onclick="fetchReplay()">Fetch replay</button><span id="replay-hint" class="muted" style="align-self:center">Enter at least one identifier.</span></div>
+            <div id="replay" class="muted" style="margin-top:10px">No replay loaded.</div>
+          </div>
+        </section>
+
+      </main>
+
+      <aside class="rail">
+        <div class="card"><h2>Recent activity</h2><div id="activity-rail"><div class="muted">No recent activity.</div></div></div>
+        <div class="card"><h2>Latest replay IDs</h2><div id="latestIds"><div class="muted">Loading…</div></div></div>
+      </aside>
+    </div>
+
+    <div class="sub" style="text-align:center;margin-top:8px" id="foot">—</div>
   </div>
 </div>
 
-<div class="card">
-  <h2>Audit summary · replay diagnostics</h2>
-  <div id="audit"><div class="muted">Loading audit diagnostics…</div></div>
-</div>
-
-<div class="card">
-  <h2>Latest replay IDs</h2>
-  <div id="latestIds"><div class="muted">Loading latest replay IDs…</div></div>
-</div>
-
-<div class="card">
-  <h2>Signal history</h2>
-  <div id="history"><div class="muted">Loading recent signal history…</div></div>
-</div>
-
-<div class="card">
-  <h2>Market snapshots</h2>
-  <div id="snapshots"><div class="muted">Loading recent market snapshots…</div></div>
-</div>
-
-<div class="card">
-  <h2>Experiment registry</h2>
-  <div id="experiments"><div class="muted">Loading experiments…</div></div>
-</div>
-
-<div class="card">
-  <h2>Replay drill-down</h2>
-  <div class="form-row"><input id="signalId" placeholder="signal_id" class="input"><input id="decisionId" placeholder="decision_id" class="input"></div>
-  <div class="form-row"><button class="small-button" onclick="fetchReplay()">Fetch replay</button><span id="replay-hint" class="muted">Enter at least one identifier.</span></div>
-  <div id="replay" class="muted">No replay loaded.</div>
-</div>
-
-<div class="card">
-  <h2>Live signal trace · how far each recent webhook travelled</h2>
-  <div id="trace"><div class="muted">No webhooks yet.</div></div>
-</div>
-
-<div class="card">
-  <h2>Strategies &amp; webhook status</h2>
-  <table><thead><tr><th>Strategy</th><th>Coin</th><th>Role</th><th>Webhook</th><th class="num">Recv</th><th>Last seen</th></tr></thead><tbody id="strats"></tbody></table>
-</div>
-
-<div class="grid2">
-  <div class="card"><h2>Open positions</h2>
-    <table><thead><tr><th>Strategy</th><th>Side</th><th class="num">Size</th><th class="num">Entry</th><th class="num">Stop</th></tr></thead><tbody id="pos"></tbody></table>
-    <div id="pos-empty" class="muted" style="padding:8px 0">No open positions.</div></div>
-  <div class="card"><h2>Month-to-date P&amp;L (realized)</h2>
-    <div id="pnl" class="big">—</div><div class="sub" id="pnl-month"></div>
-    <div class="sub" style="margin-top:10px">Regime sensor: <span id="regime" class="muted">—</span></div></div>
-</div>
-
-<div class="sub" style="text-align:center" id="foot">—</div>
-
 <script>
 const BOT="https://fox-bot-production.up.railway.app";
+// ---- Google Sign-In (paste your OAuth Web client ID below; empty = fall back to token prompt) ----
+const GOOGLE_CLIENT_ID="480097274240-81p5llui9q5qrt4cq4uq54unv8aqgr4q.apps.googleusercontent.com";
+let googleToken=null,googleEmail=null,googleExp=0,gInitTries=0;
+function decodeJwt(t){try{return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));}catch(e){return null;}}
+function googleValid(){return !!googleToken&&Date.now()<googleExp-60000;}
+function onGoogleAuth(resp){
+  const p=decodeJwt(resp.credential);if(!p)return;
+  googleToken=resp.credential;googleEmail=p.email;googleExp=(p.exp||0)*1000;
+  sessionStorage.setItem('foxGoogleToken',googleToken);renderAuthUI();
+}
+function signOut(){googleToken=googleEmail=null;googleExp=0;sessionStorage.removeItem('foxGoogleToken');try{google.accounts.id.disableAutoSelect();}catch(e){}renderAuthUI();}
+function renderAuthUI(){
+  const el=document.getElementById('auth-area');if(!el)return;
+  if(!GOOGLE_CLIENT_ID){el.innerHTML='';return;}
+  if(googleValid()){el.innerHTML=`<span class="auth-user" title="${esc(googleEmail)}">✓ ${esc(googleEmail)}</span><button class="auth-out" onclick="signOut()">Sign out</button>`;}
+  else{el.innerHTML='<div id="gbtn"></div>';
+    try{google.accounts.id.renderButton(document.getElementById('gbtn'),{theme:'filled_black',size:'medium',text:'signin_with',shape:'pill'});}catch(e){}}
+}
+function initGoogle(){
+  if(!GOOGLE_CLIENT_ID){renderAuthUI();return;}
+  if(!(window.google&&google.accounts&&google.accounts.id)){if(gInitTries++<25)setTimeout(initGoogle,300);return;}
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:onGoogleAuth,auto_select:true});
+  const saved=sessionStorage.getItem('foxGoogleToken'),p=saved&&decodeJwt(saved);
+  if(p&&Date.now()<(p.exp||0)*1000){googleToken=saved;googleEmail=p.email;googleExp=(p.exp||0)*1000;}
+  renderAuthUI();
+}
+// Returns auth headers for a control request, or null if the user must sign in first.
+function controlHeaders(){
+  if(googleValid())return {"Authorization":"Bearer "+googleToken};
+  if(!GOOGLE_CLIENT_ID){                                   // legacy: token prompt (until Google is set up)
+    let t=sessionStorage.getItem("foxDashboardToken");
+    if(!t){t=window.prompt("Enter the Railway DASHBOARD_TOKEN:");if(!t)return null;sessionStorage.setItem("foxDashboardToken",t);}
+    return {"X-Dashboard-Token":t};
+  }
+  return null;                                             // Google configured but not signed in
+}
+function needSignIn(){alert("Please sign in with Google (top-right) to control the bot.");}
+function onControlError(e){if(!GOOGLE_CLIENT_ID)sessionStorage.removeItem("foxDashboardToken");alert("Could not apply control: "+(e.message||e));}
 let regimeFilterEnabled=true;
-let latestSignalId = "";
-let latestDecisionId = "";
+let latestSignalId="",latestDecisionId="";
 const fmt=n=>(n>=0?"+":"")+Number(n).toFixed(2);
 const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const usd=n=>Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD',currencyDisplay:'narrowSymbol',maximumFractionDigits:2});
 const GATEDESC={rejected:["rejected","o-rej","rej",1],regime:["regime set","o-reg","reg",2],
   blocked:["blocked","o-blk","blk",3],noop:["no-op","o-noop","on",3],executed:["executed","o-exe","exe",5]};
+const PAGE_TITLES={overview:"Overview",positions:"Positions & P&L",pipeline:"Pipeline & Webhooks",risk:"Strategy Eligibility",audit:"Audit & Replay"};
+
+function showPage(name){
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.dataset.page===name));
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.page===name));
+  document.getElementById("crumb-current").textContent=PAGE_TITLES[name]||name;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
 async function setRegimeFilter(enabled){
-  let token=sessionStorage.getItem("foxDashboardToken");
-  if(!token){token=window.prompt("Enter the Railway DASHBOARD_TOKEN to change the regime filter:");if(!token)return;sessionStorage.setItem("foxDashboardToken",token);}
+  const h=controlHeaders();if(!h)return needSignIn();
   try{
-    const r=await fetch(BOT+"/control/regime-filter",{method:"POST",headers:{"Content-Type":"application/json","X-Dashboard-Token":token},body:JSON.stringify({enabled})});
+    const r=await fetch(BOT+"/control/regime-filter",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({enabled})});
     const data=await r.json();
     if(!data.ok)throw new Error(data.error||"control rejected");
     regimeFilterEnabled=data.regime_filter_enabled;load();
-  }catch(e){sessionStorage.removeItem("foxDashboardToken");alert("Could not change regime filter: "+e.message);}
+  }catch(e){onControlError(e);}
 }
-
 async function setBtcRegime(direction){
-  let token=sessionStorage.getItem("foxDashboardToken");
-  if(!token){token=window.prompt("Enter the Railway DASHBOARD_TOKEN to set the BTC regime:");if(!token)return;sessionStorage.setItem("foxDashboardToken",token);}
+  const h=controlHeaders();if(!h)return needSignIn();
   const timeframe=document.getElementById("regime-timeframe").value;
-  try{const r=await fetch(BOT+"/control/regime",{method:"POST",headers:{"Content-Type":"application/json","X-Dashboard-Token":token},body:JSON.stringify({timeframe,direction})});const data=await r.json();if(!data.ok)throw new Error(data.error||"control rejected");load();}
-  catch(e){sessionStorage.removeItem("foxDashboardToken");alert("Could not update BTC regime: "+e.message);}
+  try{const r=await fetch(BOT+"/control/regime",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({timeframe,direction})});const data=await r.json();if(!data.ok)throw new Error(data.error||"control rejected");load();}
+  catch(e){onControlError(e);}
 }
-
 async function setTrailing(enabled){
-  let token=sessionStorage.getItem("foxDashboardToken");
-  if(!token){token=window.prompt("Enter the Railway DASHBOARD_TOKEN to control trailing stops:");if(!token)return;sessionStorage.setItem("foxDashboardToken",token);}
   const body={enabled};
   if(enabled){
     const strategy=document.getElementById("trail-strategy").value;
@@ -179,100 +551,242 @@ async function setTrailing(enabled){
       body[key]=value;
     }
   }
+  const h=controlHeaders();if(!h)return needSignIn();
   try{
-    const r=await fetch(BOT+"/control/trailing",{method:"POST",headers:{"Content-Type":"application/json","X-Dashboard-Token":token},body:JSON.stringify(body)});
+    const r=await fetch(BOT+"/control/trailing",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
     const data=await r.json();
     if(!data.ok)throw new Error(data.error||"control rejected");
     load();
-  }catch(e){sessionStorage.removeItem("foxDashboardToken");alert("Could not update trailing stops: "+e.message);}
+  }catch(e){onControlError(e);}
 }
 
+function setTrailPreset(name){
+  const p={conservative:[3,0.2,5,3],balanced:[5,0.2,8,5],aggressive:[8,0.3,12,8]}[name];
+  if(!p)return;
+  document.getElementById("trail-be-trigger").value=p[0];
+  document.getElementById("trail-be-offset").value=p[1];
+  document.getElementById("trail-trigger").value=p[2];
+  document.getElementById("trail-distance").value=p[3];
+  updateTrailDiagram();
+}
+function updateTrailDiagram(){
+  const el=document.getElementById("trail-diagram");if(!el)return;
+  const be=+document.getElementById("trail-be-trigger").value||0;
+  const ts=+document.getElementById("trail-trigger").value||0;
+  const td=+document.getElementById("trail-distance").value||0;
+  const max=Math.max(be,ts,1)*1.28,pos=v=>4+(v/max)*92;
+  el.innerHTML=`<div class="trail-rail"></div>
+    <div class="trail-mark" style="left:${pos(0)}%"><div class="lbl">Entry</div><div class="dot" style="background:var(--dim)"></div><div class="val">0%</div></div>
+    <div class="trail-mark" style="left:${pos(be)}%"><div class="lbl">Breakeven</div><div class="dot" style="background:var(--amber)"></div><div class="val">+${be}%</div></div>
+    <div class="trail-mark" style="left:${pos(ts)}%"><div class="lbl">Trail starts</div><div class="dot" style="background:var(--green)"></div><div class="val">+${ts}%</div></div>`;
+  const cap=document.getElementById("trail-caption");
+  if(cap)cap.innerHTML=`At <b>+${be}%</b> the stop jumps to breakeven. Past <b>+${ts}%</b> it trails <b>${td}%</b> behind the peak, ratcheting up as price climbs.`;
+}
 function flow(gate,status){
-  const cls = GATEDESC[status] ? GATEDESC[status][2] : "on";
-  let h="";
-  for(let i=1;i<=5;i++){ h+=`<div class="seg ${i<=gate?cls:''}"></div>`; }
+  const cls=GATEDESC[status]?GATEDESC[status][2]:"on";let h="";
+  for(let i=1;i<=5;i++){h+=`<div class="seg ${i<=gate?cls:''}"></div>`;}
   return h;
 }
 async function useLatestIds(){
-  const signalInput = document.getElementById("signalId");
-  const decisionInput = document.getElementById("decisionId");
-  signalInput.value = latestSignalId;
-  decisionInput.value = latestDecisionId;
-  fetchReplay();
+  document.getElementById("signalId").value=latestSignalId;
+  document.getElementById("decisionId").value=latestDecisionId;
+  showPage("audit");fetchReplay();
 }
-
-async function computeSignalIdJS(strategy, event, ticker, timeVal){
-  const raw = String(timeVal || "").trim();
-  const tm = parseInt(raw, 10);
-  let source;
-  if(!Number.isNaN(tm) && tm >= 1 && tm <= 1440 && String(tm) === raw){
-    const epoch = Math.floor(Date.now()/1000 / (tm * 60));
-    source = `bar:${tm}:${epoch}`;
-  }else{
-    source = `time:${raw}`;
-  }
-  const input = `${strategy}|${event}|${ticker}|${source}`;
-  const buf = new TextEncoder().encode(input);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  const hex = Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  return hex.slice(0,16);
+async function computeSignalIdJS(strategy,event,ticker,timeVal){
+  const raw=String(timeVal||"").trim();const tm=parseInt(raw,10);let source;
+  if(!Number.isNaN(tm)&&tm>=1&&tm<=1440&&String(tm)===raw){const epoch=Math.floor(Date.now()/1000/(tm*60));source=`bar:${tm}:${epoch}`;}
+  else{source=`time:${raw}`;}
+  const input=`${strategy}|${event}|${ticker}|${source}`;
+  const buf=new TextEncoder().encode(input);
+  const hash=await crypto.subtle.digest('SHA-256',buf);
+  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
 }
 async function fetchReplay(){
-  const signalId = document.getElementById("signalId").value.trim();
-  const decisionId = document.getElementById("decisionId").value.trim();
-  const hint = document.getElementById("replay-hint");
-  const replay = document.getElementById("replay");
-  if(!signalId && !decisionId){
-    hint.textContent = "Enter at least one identifier.";
-    replay.innerHTML = "";
-    return;
-  }
-  hint.textContent = "Fetching replay...";
+  const signalId=document.getElementById("signalId").value.trim();
+  const decisionId=document.getElementById("decisionId").value.trim();
+  const hint=document.getElementById("replay-hint"),replay=document.getElementById("replay");
+  if(!signalId&&!decisionId){hint.textContent="Enter at least one identifier.";replay.innerHTML="";return;}
+  hint.textContent="Fetching replay...";
   try{
-    const params = new URLSearchParams();
-    if(signalId) params.set("signal_id", signalId);
-    if(decisionId) params.set("decision_id", decisionId);
-    const data = await fetch(`${BOT}/replay?${params.toString()}`).then((r)=>r.json());
-    const rawCnt = data.raw_signals?.length || 0;
-    const stagedCnt = data.staged?.length || 0;
-    const traceCnt = data.trace?.length || 0;
-    const summary = `<div class="check"><b class="ok">✓</b><div><b>Replay result</b><small>${rawCnt} raw · ${stagedCnt} staged · ${traceCnt} trace</small></div></div>`;
-    const rawList = (data.raw_signals||[]).slice(-3).map((item)=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.payload?.strategy||'raw')}</b><small>${esc(item.payload?.event||item.payload?.time||'')}</small></div></div>`).join("");
-    const stagedList = (data.staged||[]).slice(-3).map((item)=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.action||'action')}</b><small>${esc(item.reason||'')}</small></div></div>`).join("");
-    replay.innerHTML = `${summary}${rawList}${stagedList}`;
-    hint.textContent = "Loaded replay data.";
-  }catch(e){
-    hint.textContent = "Failed to fetch replay.";
-    replay.innerHTML = `<div class="err">${esc(String(e))}</div>`;
-  }
+    const params=new URLSearchParams();
+    if(signalId)params.set("signal_id",signalId);
+    if(decisionId)params.set("decision_id",decisionId);
+    const data=await fetch(`${BOT}/replay?${params.toString()}`).then(r=>r.json());
+    const summary=`<div class="check"><b class="ok">✓</b><div><b>Replay result</b><small>${data.raw_signals?.length||0} raw · ${data.staged?.length||0} staged · ${data.trace?.length||0} trace</small></div></div>`;
+    const rawList=(data.raw_signals||[]).slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.payload?.strategy||'raw')}</b><small>${esc(item.payload?.event||item.payload?.time||'')}</small></div></div>`).join("");
+    const stagedList=(data.staged||[]).slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.action||'action')}</b><small>${esc(item.reason||'')}</small></div></div>`).join("");
+    replay.innerHTML=`${summary}${rawList}${stagedList}`;hint.textContent="Loaded replay data.";
+  }catch(e){hint.textContent="Failed to fetch replay.";replay.innerHTML=`<div class="err">${esc(String(e))}</div>`;}
 }
 function renderHistory(history){
-  const historyEl = document.getElementById("history");
-  if(!history || (!history.raw_signals.length && !history.staged.length && !history.trace.length)){
-    historyEl.innerHTML = '<div class="muted">No recent history available.</div>';
+  const el=document.getElementById("history");
+  if(!history||(!history.raw_signals.length&&!history.staged.length&&!history.trace.length)){el.innerHTML='<div class="muted">No recent history available.</div>';return;}
+  const rawItems=history.raw_signals.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>Raw</b><small>${esc(i.payload?.strategy||'')}: ${esc(i.payload?.event||i.payload?.time||'')}</small></div></div>`).join("");
+  const stagedItems=history.staged.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.action||'')}</b><small>${esc(i.signal?.strategy||'')} · ${esc(i.reason||'')}</small></div></div>`).join("");
+  const traceItems=history.trace.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.strategy||'')}</b><small>${esc(i.status||'')} · ${esc(i.detail||'')}</small></div></div>`).join("");
+  el.innerHTML=`<div class="check"><b class="ok">✓</b><div><b>History summary</b><small>${history.raw_signals.length} raw · ${history.staged.length} staged · ${history.trace.length} trace</small></div></div>${rawItems}${stagedItems}${traceItems}`;
+}
+function renderSnapshots(s){
+  const el=document.getElementById("snapshots");
+  if(!s||!s.length){el.innerHTML='<div class="muted">No snapshots recorded yet.</div>';return;}
+  el.innerHTML=s.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.strategy||'')}</b><small>${esc(i.event||'')} · ${esc(i.t||'')}</small></div></div>`).join("");
+}
+function renderExperiments(x){
+  const el=document.getElementById("experiments");
+  if(!x||!x.length){el.innerHTML='<div class="muted">No experiments registered.</div>';return;}
+  el.innerHTML=x.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.id||'')}</b><small>${esc(i.name||'')} · ${esc(i.status||'')}</small></div></div>`).join("");
+}
+function relTime(s){
+  const d=new Date(String(s||"").replace(" ","T"));
+  if(isNaN(d.getTime()))return esc(s);
+  const diff=(Date.now()-d.getTime())/1000;
+  if(diff<0)return "just now";
+  if(diff<60)return "just now";
+  if(diff<3600)return Math.floor(diff/60)+"m ago";
+  if(diff<86400)return Math.floor(diff/3600)+"h ago";
+  if(diff<604800)return Math.floor(diff/86400)+"d ago";
+  return esc(String(s).split(" ")[0]);
+}
+const STATUS_PILL={executed:"exe",blocked:"blk",rejected:"rej",regime:"reg",noop:"noop"};
+function renderActivityRail(trace){
+  const el=document.getElementById("activity-rail");
+  const items=(trace||[]).slice(0,7);
+  if(!items.length){el.innerHTML='<div class="muted">No recent activity.</div>';return;}
+  el.innerHTML=items.map(e=>{const g=GATEDESC[e.status]||["event","o-noop","on",e.gate||1];
+    const pc=STATUS_PILL[e.status]||"noop";
+    return `<div class="act"><span class="act-dot ${g[1]}"></span><div class="act-body">
+      <div class="act-top"><span class="act-name" title="${esc(e.strategy)}">${esc(e.strategy)}</span><span class="act-time">${relTime(e.t)}</span></div>
+      <div class="act-sub"><span class="act-pill ${pc}">${g[0]}</span><span class="act-dir">${esc(e.event)}</span></div></div></div>`;}).join("");
+}
+
+// ---- native live markets list ----
+// crypto: Binance + CoinGecko (keyless, CORS). TradFi: Twelve Data (free key, public — rotate anytime).
+// logos: jsDelivr crypto-icons (crypto) + FMP static images (ETFs); letter badge fallback on error.
+const TWELVE_KEY="0cd4ec0222d1428fb73694ac1619f407";
+const CRYPTO_ICO=s=>`https://cdn.jsdelivr.net/gh/atomiclabs/cryptocurrency-icons/128/color/${s}.png`;
+const FMP_LOGO=s=>`https://financialmodelingprep.com/image-stock/${s}.png`;
+let tradfiCache=[],tradfiAt=0;
+function mktRow(r){
+  const chg=r.chg==null||isNaN(r.chg)?'':`<small class="${r.chg>=0?'pos':'neg'}">${r.chg>=0?'+':''}${r.chg.toFixed(2)}%</small>`;
+  const ico=`<span class="mkt-ico"><span class="mkt-fallback" style="background:${r.bg}">${r.letter}</span>${r.logo?`<img src="${r.logo}" alt="" loading="lazy" onerror="this.remove()">`:''}</span>`;
+  return `<div class="mkt-row">${ico}<div class="mkt-name"><b>${esc(r.name)}</b><small>${esc(r.sub)}</small></div><div class="mkt-quote"><b>${r.price}</b>${chg}</div></div>`;
+}
+async function fetchTradfi(){
+  if(Date.now()-tradfiAt<55000&&tradfiCache.length)return tradfiCache;   // free tier: 8 credits/min → throttle
+  try{
+    const d=await fetch(`https://api.twelvedata.com/quote?symbol=SPY,QQQ,UUP&apikey=${TWELVE_KEY}`).then(r=>r.json());
+    const get=(sym,name,letter,bg)=>{const q=d&&d[sym];if(!q||q.code||q.close==null)return null;
+      return {logo:FMP_LOGO(sym),letter,bg,name,sub:sym,price:'$'+(+q.close).toLocaleString('en-US',{maximumFractionDigits:2}),chg:parseFloat(q.percent_change)};};
+    const rows=[get('SPY','S&P 500','S','#3f7fd6'),get('QQQ','Nasdaq 100','Q','#7d6cff'),get('UUP','US Dollar Index','$','#2fb37a')].filter(Boolean);
+    if(rows.length){tradfiCache=rows;tradfiAt=Date.now();}
+    return rows.length?rows:tradfiCache;
+  }catch(e){return tradfiCache;}
+}
+async function loadMarkets(){
+  const el=document.getElementById("markets-list");if(!el)return;
+  let rows=[];
+  try{
+    const [bin,cg]=await Promise.allSettled([
+      fetch('https://api.binance.com/api/v3/ticker/24hr?symbols=%5B%22BTCUSDT%22,%22ETHUSDT%22%5D').then(r=>r.json()),
+      fetch('https://api.coingecko.com/api/v3/global').then(r=>r.json())]);
+    if(bin.status==='fulfilled'&&Array.isArray(bin.value)){
+      const by={};bin.value.forEach(x=>by[x.symbol]=x);
+      const add=(sym,ico,name,letter,bg)=>{const q=by[sym];if(!q)return;
+        rows.push({logo:CRYPTO_ICO(ico),letter,bg,name,sub:sym,price:'$'+(+q.lastPrice).toLocaleString('en-US',{maximumFractionDigits:2}),chg:+q.priceChangePercent});};
+      add('BTCUSDT','btc','Bitcoin','₿','#f7931a');
+      add('ETHUSDT','eth','Ethereum','Ξ','#627eea');
+    }
+    if(cg.status==='fulfilled'){
+      const btcd=cg.value?.data?.market_cap_percentage?.btc;
+      if(btcd!=null)rows.push({logo:CRYPTO_ICO('btc'),letter:'%',bg:'#f7931a',name:'BTC Dominance',sub:'Share of total crypto cap',price:btcd.toFixed(2)+'%',chg:null});
+    }
+  }catch(e){}
+  try{rows=rows.concat(await fetchTradfi());}catch(e){}
+  el.innerHTML=rows.length?rows.map(mktRow).join(''):'<div class="muted">Market data unavailable right now.</div>';
+}
+function syncMarketHeight(){
+  const row=document.querySelector('.posture-row');if(!row)return;
+  const cards=row.children;if(cards.length<2)return;
+  const market=cards[1];
+  if(window.innerWidth<=1040){market.style.height='';return;}   // stacked on mobile → natural height
+  market.style.height=cards[0].offsetHeight+'px';
+}
+window.addEventListener('resize',syncMarketHeight);
+
+// ---- BTC regime chart (Lightweight Charts + Binance candles + regime markers) ----
+let regimeInterval="1h",regimeChart=null,candleSeries=null,chartResizeBound=false,lwcRetries=0;
+function setRegimeTf(tf){
+  regimeInterval=tf;
+  document.querySelectorAll('#rg-tf button').forEach(b=>b.classList.toggle('active',b.dataset.tf===tf));
+  loadRegimeChart();
+}
+async function fetchKlines(interval){
+  const url=`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=300`;
+  const r=await fetch(url);
+  if(!r.ok)throw new Error("klines "+r.status);
+  return (await r.json()).map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4]}));
+}
+async function fetchRegimeMarkers(){
+  try{
+    const h=await fetch(BOT+"/history?limit=500").then(r=>r.json());
+    const events=[];
+    for(const rec of (h.staged||[])){
+      if(rec.action!=='update_regime')continue;
+      // matches both new "regime[BTC][1h]=long" and legacy "regime[BTC]=long"
+      const m=/regime\[(\w+)\](?:\[(\w+)\])?=(\w+)/.exec(rec.reason||'');
+      if(!m||m[1]!=='BTC')continue;
+      const d=new Date(String(rec.t).replace(' ','T')+'Z');   // bot logs UTC (Railway)
+      if(isNaN(d.getTime()))continue;
+      events.push({time:Math.floor(d.getTime()/1000),tf:m[2]||'1h',side:m[3]});
+    }
+    events.sort((a,b)=>a.time-b.time);
+    return events.map(e=>({time:e.time,
+      position:e.side==='long'?'belowBar':'aboveBar',
+      color:e.side==='long'?'#2fd07a':'#ff5f6e',
+      shape:e.side==='long'?'arrowUp':'arrowDown',
+      text:e.tf.toUpperCase()+(e.side==='long'?' ▲':' ▼')}));
+  }catch(e){return [];}
+}
+async function loadRegimeChart(){
+  const el=document.getElementById("regime-chart"),note=document.getElementById("regime-chart-note");
+  if(!el)return;
+  if(!window.LightweightCharts){
+    if(lwcRetries++<15){setTimeout(loadRegimeChart,600);}
+    else if(note)note.innerHTML='<span class="muted">Chart library could not load.</span>';
     return;
   }
-  const rawItems = history.raw_signals.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>Raw</b><small>${esc(item.payload?.strategy||'')}: ${esc(item.payload?.event||item.payload?.time||'')}</small></div></div>`).join("");
-  const stagedItems = history.staged.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.action||'')}</b><small>${esc(item.signal?.strategy||item.signal?.strategy||'')} · ${esc(item.reason||'')}</small></div></div>`).join("");
-  const traceItems = history.trace.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.strategy||'')}</b><small>${esc(item.status||'')} · ${esc(item.detail||'')}</small></div></div>`).join("");
-  historyEl.innerHTML = `<div class="check"><b class="ok">✓</b><div><b>History summary</b><small>${history.raw_signals.length} raw · ${history.staged.length} staged · ${history.trace.length} trace</small></div></div>${rawItems}${stagedItems}${traceItems}`;
-}
-function renderSnapshots(snapshots){
-  const snapEl = document.getElementById("snapshots");
-  if(!snapshots || !snapshots.length){
-    snapEl.innerHTML = '<div class="muted">No snapshots recorded yet.</div>';
-    return;
+  try{
+    const [candles,markers]=await Promise.all([fetchKlines(regimeInterval),fetchRegimeMarkers()]);
+    if(!regimeChart){
+      const TZ="Europe/Bucharest";
+      regimeChart=LightweightCharts.createChart(el,{
+        layout:{background:{type:'solid',color:'transparent'},textColor:'#8a97ab',fontFamily:'inherit'},
+        grid:{vertLines:{color:'rgba(255,255,255,.04)'},horzLines:{color:'rgba(255,255,255,.04)'}},
+        localization:{timeFormatter:ts=>new Date(ts*1000).toLocaleString('en-GB',{timeZone:TZ,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})},
+        timeScale:{timeVisible:true,borderColor:'rgba(255,255,255,.08)',
+          tickMarkFormatter:(ts,type)=>{const d=new Date(ts*1000);
+            if(type>=3)return d.toLocaleTimeString('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit'});
+            if(type===2)return d.toLocaleDateString('en-GB',{timeZone:TZ,day:'2-digit',month:'short'});
+            if(type===1)return d.toLocaleDateString('en-GB',{timeZone:TZ,month:'short'});
+            return d.toLocaleDateString('en-GB',{timeZone:TZ,year:'numeric'});}},
+        rightPriceScale:{borderColor:'rgba(255,255,255,.08)'},
+        crosshair:{mode:0},width:el.clientWidth,height:el.clientHeight||380});
+      candleSeries=regimeChart.addCandlestickSeries({upColor:'#2fd07a',downColor:'#ff5f6e',borderVisible:false,wickUpColor:'#2fd07a',wickDownColor:'#ff5f6e'});
+      if(!chartResizeBound){window.addEventListener('resize',()=>{if(regimeChart)regimeChart.applyOptions({width:el.clientWidth});});chartResizeBound=true;}
+    }
+    candleSeries.setData(candles);
+    const minT=candles.length?candles[0].time:0;
+    const vis=markers.filter(m=>m.time>=minT);
+    candleSeries.setMarkers(vis);
+    regimeChart.timeScale().fitContent();
+    if(note)note.textContent=markers.length
+      ? `${markers.length} regime alert${markers.length===1?'':'s'} recorded · ${vis.length} within this ${regimeInterval} view · arrows mark 1H/4H long/short fires · times in Bucharest`
+      : 'No regime alerts recorded yet — 1H/4H sensor fires will appear here as arrows. Times shown in Bucharest.';
+  }catch(e){
+    if(note)note.innerHTML='<span class="muted">Could not load BTC candles ('+esc(String(e.message||e))+'). Binance may be blocked on this network.</span>';
   }
-  snapEl.innerHTML = snapshots.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.strategy||'')}</b><small>${esc(item.event||'')} · ${esc(item.t||'')}</small></div></div>`).join("");
 }
-function renderExperiments(experiments){
-  const expEl = document.getElementById("experiments");
-  if(!experiments || !experiments.length){
-    expEl.innerHTML = '<div class="muted">No experiments registered.</div>';
-    return;
-  }
-  expEl.innerHTML = experiments.slice(-3).map(item=>`<div class="check"><b class="ok">✓</b><div><b>${esc(item.id||'')}</b><small>${esc(item.name||'')} · ${esc(item.status||'')}</small></div></div>`).join("");
-}
+
 async function load(){
   const err=document.getElementById("err");err.innerHTML="";
   try{
@@ -283,90 +797,237 @@ async function load(){
       fetch(BOT+"/history?limit=8").then(r=>r.json()),
       fetch(BOT+"/market-snapshots?limit=5").then(r=>r.json()),
       fetch(BOT+"/experiments").then(r=>r.json())]);
-    const mode=document.getElementById("mode");
-    mode.textContent=reg.mode==="LIVE"?"● LIVE":"○ PAPER (dry-run)";mode.className="badge "+(reg.mode==="LIVE"?"b-live":"b-dry");
-    document.getElementById("net").textContent=reg.network;
-    const flags=st.risk_flags||[];
-    document.getElementById("risk").innerHTML=flags.length?`<div class="err"><b>Position risk warning</b><br>${flags.map(esc).join("<br>")}</div>`:"";
 
-    // live validation (this is the decision aid; the funnel below is history only)
-    const v=st.validation||{},sum=v.summary||{},quality=v.timestamp_quality||{};regimeFilterEnabled=v.regime_filter_enabled!==false;
-    const stat=(n,label)=>`<div class="vstat"><b>${n??0}</b><span>${label}</span></div>`;
-    const checks=(v.global_checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join("");
-    const regimeInfo=(v.regimes||[])[0]||{},regimeSide=regimeInfo.side||'waiting',regimeTf=regimeInfo.timeframe||'1h',tf=regimeInfo.timeframes||{},one=tf['1h']?.side||'waiting',four=tf['4h']?.side||'waiting';
-    const node=(label,side)=>`<div class="regime-node ${side==='long'?'active-long':side==='short'?'active-short':''}"><b>${label}</b><small>${side==='long'?'▲ LONG':side==='short'?'▼ SHORT':'— waiting'}</small></div>`;
-    const regime=`<div class="regime-graph">${node('BTC · 1h',one)}<div class="regime-arrow">→</div>${node('BTC · 4h',four)}</div><div class="check"><b class="${regimeSide==='long'?'ok':regimeSide==='short'?'no':'no'}">${regimeSide==='long'?'▲':regimeSide==='short'?'▼':'!'}</b><div><b>Active BTC direction: ${esc(regimeSide.toUpperCase())}</b><small>${esc(regimeInfo.source||'sensor')} · ${esc(regimeTf)} selected. ${esc(regimeInfo.explanation||'')}</small></div></div>`;
-    const rules=(v.strategies||[]).map(s=>`<div class="strategy-rule"><b>${esc(s.strategy)}</b><span class="tag">${esc(s.status)}</span><p>${esc(s.summary)}</p>${(s.checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`).join("");
-    const control=`<div class="control"><div><b>BTC trend regime: ${regimeFilterEnabled?'ACTIVE':'PAUSED'}</b><span class="tip" title="When active, a Long regime permits only Long BTC signals; Short permits only Short. The 1h/4h sensors never trade.">ⓘ</span><p>Choose the sensor timeframe, or manually lock the BTC strategy to Long or Short. Requires DASHBOARD_TOKEN.</p><div class="regime-choice"><select id="regime-timeframe" class="input" style="flex:0 0 100px"><option value="1h" ${regimeTf==='1h'?'selected':''}>BTC 1h</option><option value="4h" ${regimeTf==='4h'?'selected':''}>BTC 4h</option></select><button onclick="setBtcRegime('auto')">Use sensor</button><button class="toggle-on" onclick="setBtcRegime('long')">Only long</button><button class="toggle-off" onclick="setBtcRegime('short')">Only short</button></div></div><button class="${regimeFilterEnabled?'toggle-on':'toggle-off'}" onclick="setRegimeFilter(${!regimeFilterEnabled})">${regimeFilterEnabled?'Pause filter':'Activate filter'}</button></div>`;
+    const mode=document.getElementById("mode");
+    mode.textContent=reg.mode==="LIVE"?"● LIVE":"○ PAPER";mode.className="badge "+(reg.mode==="LIVE"?"b-live":"b-dry");
+    document.getElementById("net").textContent=reg.network;
+
+    const pf=st.portfolio||{};
+    const coinColor=c=>({BTC:'#f5b942',ETH:'#a577ff',SOL:'#5b8bff'}[c]||'#8a97ab');
+    const live=pf.positions||[];
+    const liveUnrealized=live.reduce((a,p)=>a+(p.unrealized_pnl||0),0);
+    const internalUnrealized=st.unrealized_pnl_total;
+    const unrealized=pf.available?liveUnrealized:(internalUnrealized!=null?internalUnrealized:null);
+
+    // ---- BALANCE HERO ----
+    if(pf.available){
+      const dCls=unrealized>0?'up':unrealized<0?'down':'flat';
+      document.getElementById("balance").innerHTML=`
+        <div class="bal-top"><div><span class="eyebrow">Account value · live equity</span>
+          <div class="balance-val">${usd(pf.account_value)}</div></div>
+          ${unrealized!=null?`<span class="delta ${dCls}" title="Unrealized P&L on open positions">${unrealized>=0?'▲':'▼'} ${fmt(unrealized)}</span>`:''}</div>
+        <div class="substats">
+          <div class="substat"><small>Available</small><b>${usd(pf.withdrawable)}</b></div>
+          <div class="substat"><small>Margin used</small><b>${usd(pf.margin_used)}</b></div>
+          <div class="substat"><small>Open notional</small><b>${usd(pf.notional)}</b></div>
+        </div>`;
+    }else{
+      document.getElementById("balance").innerHTML=`
+        <div class="bal-top"><div><span class="eyebrow">Account value · live equity</span>
+          <div class="balance-val" style="color:var(--dim)">— — —</div></div></div>
+        <div class="sub" style="margin-top:10px">${esc(pf.error||'Exchange account not connected.')} Realized performance below is live from the trade log.</div>
+        <div class="substats">
+          <div class="substat"><small>Available</small><b>—</b></div>
+          <div class="substat"><small>Margin used</small><b>—</b></div>
+          <div class="substat"><small>Open notional</small><b>—</b></div>
+        </div>`;
+    }
+
+    // ---- PERFORMANCE ----
+    const stats=st.stats||{};
+    const months=Object.keys(st.monthly_pnl||{}).sort();
+    const monthPnl=months.length?st.monthly_pnl[months[months.length-1]]:0;
+    const net=stats.net_pnl||0,wins=stats.wins||0,losses=stats.losses||0,closed=stats.closed_trades||0;
+    const winRate=stats.win_rate_pct!=null?stats.win_rate_pct:(closed?Math.round(wins/closed*100):0);
+    const signedUsd=n=>(n>=0?'+':'−')+usd(Math.abs(n));
+    const donutBg=closed?`conic-gradient(var(--green) 0 ${winRate}%, var(--red) ${winRate}% 100%)`:'conic-gradient(var(--dim2) 0 100%)';
+    document.getElementById("performance").innerHTML=`
+      <div class="perf-flex">
+        <div>
+          <span class="eyebrow">Realized P&amp;L · all-time</span>
+          <div class="perf-val ${net>=0?'pos':'neg'}">${signedUsd(net)}</div>
+          <div class="perf-sub">This month <b class="mono ${monthPnl>=0?'pos':'neg'}">${signedUsd(monthPnl)}</b></div>
+          <div class="perf-sub" style="margin-top:8px"><b class="mono pos">${wins}W</b> · <b class="mono neg">${losses}L</b> · ${closed} closed trade${closed===1?'':'s'}</div>
+        </div>
+        <div class="donut" style="background:${donutBg}" title="${wins} wins · ${losses} losses of ${closed} closed">
+          <div class="donut-hole"><b>${closed?winRate+'%':'—'}</b><small>win rate</small></div>
+        </div>
+      </div>`;
+
+    // ---- validation / regime (shared) ----
+    const v=st.validation||{},sum=v.summary||{},quality=v.timestamp_quality||{};
+    regimeFilterEnabled=v.regime_filter_enabled!==false;
+    const regimeInfo=(v.regimes||[])[0]||{},regimeSide=regimeInfo.side||'waiting',regimeTf=regimeInfo.timeframe||'1h';
+    const tf=regimeInfo.timeframes||{},one=tf['1h']?.side||'waiting',four=tf['4h']?.side||'waiting';
+
+    // ---- BOT POSTURE control ----
+    const dirCls=regimeSide==='long'?'long':regimeSide==='short'?'short':'wait';
+    const dirLabel=regimeSide==='long'?'▲ LONG':regimeSide==='short'?'▼ SHORT':'— WAITING';
+    const regimeMode=regimeInfo.source==='manual'?regimeSide:'auto';
+    const chip=(label,side)=>`<span class="chip ${side==='long'?'long':side==='short'?'short':''}">${label} · ${side==='long'?'long':side==='short'?'short':'waiting'}</span>`;
+    document.getElementById("posture").innerHTML=`
+      <div class="posture">
+        <div class="posture-state ${dirCls}">
+          <span class="eyebrow">Active BTC direction</span>
+          <span class="ps-dir">${dirLabel}</span>
+          <span class="ps-src">${esc(regimeInfo.source||'sensor')} · ${esc(regimeTf)} · filter ${regimeFilterEnabled?'active':'paused'}</span>
+        </div>
+        <div class="posture-controls">
+          <div class="pc-row">
+            <select id="regime-timeframe" class="input" style="flex:0 0 108px"><option value="1h" ${regimeTf==='1h'?'selected':''}>BTC 1h</option><option value="4h" ${regimeTf==='4h'?'selected':''}>BTC 4h</option></select>
+            <div class="segmented">
+              <button class="${regimeMode==='auto'?'active':''}" onclick="setBtcRegime('auto')">Sensor</button>
+              <button class="${regimeMode==='long'?'active seg-long':''}" onclick="setBtcRegime('long')">Force long</button>
+              <button class="${regimeMode==='short'?'active seg-short':''}" onclick="setBtcRegime('short')">Force short</button>
+            </div>
+          </div>
+          <div class="pc-row toggle-row">
+            <div class="toggle-switch ${regimeFilterEnabled?'on':''}" onclick="setRegimeFilter(${!regimeFilterEnabled})" title="${regimeFilterEnabled?'Pause direction filter':'Activate direction filter'}"><div class="track"></div><div class="thumb"></div></div>
+            <div class="toggle-copy"><b>Direction filter</b><small>${regimeFilterEnabled?'On — only signals matching the active direction can trade.':'Off — either direction can trade once other checks pass.'}</small></div>
+          </div>
+          <div class="chips">${chip('Sensor 1h',one)}${chip('Sensor 4h',four)}<span class="chip" title="Operator actions require the Railway DASHBOARD_TOKEN">🔒 token required</span></div>
+        </div>
+      </div>`;
+
+    // ---- LIVE POSITIONS ----
+    document.getElementById("pos-count-chip").textContent=live.length;
+    const posWrap=document.getElementById("pos-table-wrap"),posSummary=document.getElementById("pos-summary"),posEmpty=document.getElementById("live-pos-empty");
+    if(live.length){
+      posWrap.style.display='';posSummary.style.display='';posEmpty.style.display='none';
+      const totNotional=live.reduce((a,p)=>a+(p.position_value||0),0);
+      const totMargin=live.reduce((a,p)=>a+(p.margin_used||0),0);
+      const uCls=liveUnrealized>=0?'pos':'neg';
+      posSummary.innerHTML=`
+        <div class="pos-sum"><small>Open positions</small><b>${live.length}</b></div>
+        <div class="pos-sum"><small>Total notional</small><b>${usd(totNotional)}</b></div>
+        <div class="pos-sum"><small>Unrealized P&amp;L</small><b class="${uCls}">${signedUsd(liveUnrealized)}</b></div>
+        <div class="pos-sum"><small>Margin used</small><b>${totMargin?usd(totMargin):'—'}</b></div>`;
+      document.getElementById("live-pos").innerHTML=live.map(p=>{
+        const markPx=p.mark_px||(p.size?p.position_value/p.size:0);
+        const roe=(p.return_on_equity!=null?p.return_on_equity:(p.leverage&&p.position_value?p.unrealized_pnl/(p.position_value/p.leverage)*100:null));
+        const roeBar=roe==null?'':`<div class="roebar"><i style="width:${Math.min(Math.abs(roe),100)}%;background:${roe>=0?'var(--green)':'var(--red)'}"></i></div>`;
+        let liqCell='—';
+        if(p.liquidation_px){
+          const liq=Number(p.liquidation_px),distPct=markPx?Math.abs((markPx-liq)/markPx*100):null;
+          const distColor=distPct==null?'var(--dim)':distPct>15?'var(--green)':distPct>5?'var(--amber)':'var(--red)';
+          const health=distPct==null?'':`<div class="liqhealth"><i style="width:${Math.max(4,100-Math.min(distPct*3,100))}%;background:${distColor}"></i></div>`;
+          liqCell=`<span style="color:${distColor}">${distPct!=null?distPct.toFixed(1)+'% away':liq.toLocaleString()}</span><div class="liqdist">liq ${liq.toLocaleString()}</div>${health}`;
+        }
+        const roeCls=roe==null?'':(roe>=0?'pos':'neg');
+        return `<tr class="live-pos"><td><span class="coin-badge"><span class="coin-dot" style="background:${coinColor(p.coin)}"></span>${esc(p.coin)}</span></td><td><span class="pill ${p.side==='long'?'p-long':'p-short'}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${markPx?markPx.toLocaleString(undefined,{maximumFractionDigits:2}):'—'}</td><td class="num ${p.unrealized_pnl>=0?'pos':'neg'}">${fmt(p.unrealized_pnl)}</td><td class="num ${roeCls}">${roe!=null?fmt(roe)+'%':'—'}${roeBar}</td><td class="num">${liqCell}</td><td class="num">${p.leverage||'—'}×${p.margin_type?`<div class="liqdist">${esc(p.margin_type)}</div>`:''}</td></tr>`;
+      }).join('');
+    }else{
+      posWrap.style.display='none';posSummary.style.display='none';posEmpty.style.display='block';
+      posEmpty.innerHTML=`<div class="empty-state"><div class="es-icon">🗂️</div><b>No open positions</b><span>${pf.available?'The bot holds nothing on Hyperliquid right now. New entries appear here the moment they fill.':'Connect the exchange account to see live positions here.'}</span></div>`;
+    }
+
+    // ---- STRATEGY P&L (overview diverging bar chart) ----
+    const byStrat=stats.by_strategy||{},stratNames=Object.keys(byStrat);
+    const maxAbs=Math.max(...stratNames.map(n=>Math.abs(byStrat[n].net_pnl)),0.01);
+    const stratPnlEl=document.getElementById("strat-pnl");
+    if(stratPnlEl)stratPnlEl.innerHTML=stratNames.length?stratNames
+      .slice().sort((a,b)=>byStrat[b].net_pnl-byStrat[a].net_pnl)
+      .map(name=>{const s=byStrat[name],cls=s.net_pnl>=0?'pos':'neg',w=Math.abs(s.net_pnl)/maxAbs*50;
+        return `<div class="pnlbar-row" title="${esc(name)} · ${fmt(s.net_pnl)} · ${s.trades} trade${s.trades===1?'':'s'} · ${s.win_rate_pct}% win">
+          <div class="pnlbar-name">${esc(name)}</div>
+          <div class="pnlbar-track"><div class="pnlbar-zero"></div><div class="pnlbar-fill ${cls}" style="width:${w}%"></div></div>
+          <div class="pnlbar-val ${cls}">${signedUsd(s.net_pnl)}</div></div>`;}).join('')
+      :'<div class="muted">No closed trades yet — strategy P&L will appear here after the first close.</div>';
+
+    // ---- STRATEGY PERF (positions page table) ----
+    document.getElementById("strat-perf-wrap").innerHTML=stratNames.length?`<table class="strat-perf"><thead><tr><th>Strategy</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Net P&amp;L</th></tr></thead><tbody>${stratNames.map(name=>{const s=byStrat[name];return `<tr><td>${esc(name)}</td><td class="num">${s.trades}</td><td class="num">${s.win_rate_pct}%</td><td class="num ${s.net_pnl>=0?'pos':'neg'}">${fmt(s.net_pnl)}</td></tr>`;}).join('')}</tbody></table>`:'<div class="muted">No closed trades yet.</div>';
+
+    // ---- TRAILING control ----
     const trailing=st.trailing||{},trailConfigs=trailing.configured_strategies||{},trailNames=Object.keys(trailConfigs),defaultStrategy=trailNames[0]||(v.strategies||[])[0]?.strategy||'';
     const currentTrail=trailConfigs[defaultStrategy]||{be_trigger_pct:.05,be_offset_pct:.002,trail_trigger_pct:.08,trail_distance_pct:.05};
     const strategyOptions=(v.strategies||[]).filter(s=>s.status!=="sensor").map(s=>`<option value="${esc(s.strategy)}" ${s.strategy===defaultStrategy?'selected':''}>${esc(s.strategy)}</option>`).join('');
-    const trailingControl=`<div class="control"><div style="width:100%"><b>Trailing stop: ${trailing.enabled?'ACTIVE':'OFF'}</b><span class="tip" title="A stop only ratchets toward profit. Percent fields use familiar percent units: 5 means 5%.">ⓘ</span><p>Save activates trailing for the selected strategy. It applies to current and future positions for that strategy.</p><div class="trail-form"><div><label class="trail-label">Strategy</label><select id="trail-strategy" class="input">${strategyOptions}</select></div><div><label class="trail-label">Breakeven at %</label><input id="trail-be-trigger" class="input" type="number" min="0.01" step="0.01" value="${currentTrail.be_trigger_pct*100}"></div><div><label class="trail-label">BE offset %</label><input id="trail-be-offset" class="input" type="number" min="0.01" step="0.01" value="${currentTrail.be_offset_pct*100}"></div><div><label class="trail-label">Trail starts at %</label><input id="trail-trigger" class="input" type="number" min="0.01" step="0.01" value="${currentTrail.trail_trigger_pct*100}"></div><div><label class="trail-label">Trail distance %</label><input id="trail-distance" class="input" type="number" min="0.01" step="0.01" value="${currentTrail.trail_distance_pct*100}"></div></div><div class="trail-actions"><button class="toggle-off" onclick="setTrailing(false)">Turn off</button><button class="toggle-on" onclick="setTrailing(true)">Save &amp; activate</button></div></div></div>`;
-    document.getElementById("validation").innerHTML=`${control}${trailingControl}<div class="validation-grid">${stat(sum.received,'signals received')}${stat(sum.source_valid,'source checks passed')}${stat(sum.decisions_recorded,'decisions recorded')}${stat(sum.executed,'confirmed executions')}</div><div class="grid2" style="margin-top:14px"><div><h2 style="margin-top:0">Global safeguards</h2>${checks}</div><div><h2 style="margin-top:0">Regime logic, plainly</h2>${regime}<div class="check"><b class="${quality.timeframe?'no':'ok'}">${quality.timeframe?'!':'✓'}</b><div><b>Alert timestamps</b><small>${quality.timestamp||0} true timestamps · ${quality.timeframe||0} timeframe-only values · ${quality.missing||0} missing. Use {{timenow}} in Lux/TradingView alerts.</small></div></div></div></div><h2 style="margin-top:16px">Strategy-by-strategy eligibility</h2>${rules}`;
+    const activeBadges=trailNames.length?`<div class="trail-badges">${trailNames.map(n=>`<span class="trail-badge">✓ ${esc(n)}</span>`).join('')}</div>`:'';
+    document.getElementById("trailing-control").innerHTML=`
+      <div class="pc-row toggle-row" style="margin-bottom:16px">
+        <div class="toggle-switch ${trailing.enabled?'on':''}" onclick="setTrailing(${!trailing.enabled})" title="${trailing.enabled?'Turn trailing off':'Turn trailing on'}"><div class="track"></div><div class="thumb"></div></div>
+        <div class="toggle-copy"><b>Trailing stop ${trailing.enabled?'active':'off'}</b><small>A stop that only ratchets toward profit — it never moves against you. Percent fields use plain units: 5 means 5%.</small></div>
+      </div>
+      ${activeBadges}
+      <div class="preset-row"><span class="pr-label">Preset</span>
+        <button class="preset-btn" onclick="setTrailPreset('conservative')">Conservative</button>
+        <button class="preset-btn" onclick="setTrailPreset('balanced')">Balanced</button>
+        <button class="preset-btn" onclick="setTrailPreset('aggressive')">Aggressive</button>
+      </div>
+      <div class="trail-diagram" id="trail-diagram"></div>
+      <div class="trail-caption" id="trail-caption"></div>
+      <div class="trail-form">
+        <div><label class="trail-label">Strategy</label><select id="trail-strategy" class="input">${strategyOptions}</select></div>
+        <div><label class="trail-label">Breakeven at %</label><input id="trail-be-trigger" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.be_trigger_pct*100).toFixed(2)}" oninput="updateTrailDiagram()"></div>
+        <div><label class="trail-label">BE offset %</label><input id="trail-be-offset" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.be_offset_pct*100).toFixed(2)}"></div>
+        <div><label class="trail-label">Trail starts at %</label><input id="trail-trigger" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.trail_trigger_pct*100).toFixed(2)}" oninput="updateTrailDiagram()"></div>
+        <div><label class="trail-label">Trail distance %</label><input id="trail-distance" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.trail_distance_pct*100).toFixed(2)}" oninput="updateTrailDiagram()"></div>
+      </div>
+      <div class="trail-actions"><button class="small-button" onclick="setTrailing(true)">Save &amp; activate</button></div>`;
+    updateTrailDiagram();
 
-    const recentRaw = audit.recent?.raw_signals || [];
-    const recentStaged = audit.recent?.staged || [];
-    const recentTrace = audit.recent?.trace || [];
-    const summaryItem = (label, item) => item ? `<div class="check"><b class="ok">✓</b><div><b>${esc(label)}</b><small>${esc(item.payload?.strategy || item.signal?.strategy || item.strategy || 'unknown')} · ${esc(item.payload?.event || item.signal?.action || item.status || 'latest')}</small></div></div>` : '';
-    // resolve latest ids; if audit lacks a latest signal_id, compute a deterministic
-    // id client-side from the most recent staged signal so the "Use latest IDs" button still works.
-    const latestSignal = audit.latest_signal_id || null;
-    const latestDecision = audit.latest_decision_id || null;
-    let resolvedLatestSignal = latestSignal;
+    // ---- PIPELINE STATUS (pipeline page) ----
+    const stat=(n,label)=>`<div class="vstat"><b>${n??0}</b><span>${label}</span></div>`;
+    const node=(label,side)=>`<div class="regime-node ${side==='long'?'active-long':side==='short'?'active-short':''}"><b>${label}</b><small>${side==='long'?'▲ LONG':side==='short'?'▼ SHORT':'— waiting'}</small></div>`;
+    document.getElementById("pipeline-status").innerHTML=`<div class="validation-grid">${stat(sum.received,'signals received')}${stat(sum.source_valid,'source checks passed')}${stat(sum.decisions_recorded,'decisions recorded')}${stat(sum.executed,'confirmed executions')}</div>
+      <div class="grid2" style="margin-top:14px"><div><h2 style="margin-top:0">Regime logic, plainly</h2><div class="regime-graph">${node('BTC · 1h',one)}<div class="regime-arrow">→</div>${node('BTC · 4h',four)}</div></div>
+      <div><h2 style="margin-top:0">Alert timestamps</h2><div class="check"><b class="${quality.timeframe?'no':'ok'}">${quality.timeframe?'!':'✓'}</b><div><b>${quality.timestamp||0} true · ${quality.timeframe||0} timeframe-only · ${quality.missing||0} missing</b><small>Use {{timenow}} in Lux/TradingView alerts for true timestamps.</small></div></div></div></div>`;
+
+    // ---- ELIGIBILITY (risk page) ----
+    document.getElementById("eligibility").innerHTML=(v.strategies||[]).map(s=>`<div class="strategy-rule"><b>${esc(s.strategy)}</b><span class="tag">${esc(s.status)}</span><p>${esc(s.summary)}</p>${(s.checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`).join("")||'<div class="muted">No strategies configured.</div>';
+
+    // ---- RISK BANNER (top, only when flags exist) + SAFEGUARDS (eligibility page) ----
+    const flags=st.risk_flags||[];
+    document.getElementById("risk-banner").innerHTML=flags.length?`<div class="err"><b>⚠ Position risk</b><br>${flags.map(esc).join("<br>")}</div>`:'';
+    const sg=document.getElementById("safeguards");
+    if(sg)sg.innerHTML=(v.global_checks||[]).map(c=>`<div class="safeguard"><b class="ico ${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join("")||'<div class="muted">No safeguards reported.</div>';
+
+    // ---- latest ids ----
+    let resolvedLatestSignal=audit.latest_signal_id||null;
+    const latestDecision=audit.latest_decision_id||null;
     if(!resolvedLatestSignal){
-      const recentStagedList = audit.recent?.staged || [];
-      if(recentStagedList.length){
-        const s = recentStagedList[recentStagedList.length-1].signal || recentStagedList[0].signal || {};
-        if(s && s.strategy){
-          try{ resolvedLatestSignal = await computeSignalIdJS(s.strategy, s.event||'', s.ticker||'', s.time||''); }catch(e){ /* ignore */ }
-        }
-      }
+      const rs=audit.recent?.staged||[];
+      if(rs.length){const s=rs[rs.length-1].signal||rs[0].signal||{};
+        if(s&&s.strategy){try{resolvedLatestSignal=await computeSignalIdJS(s.strategy,s.event||'',s.ticker||'',s.time||'');}catch(e){}}}
     }
-    const displayLatestSignal = resolvedLatestSignal || 'none';
-    const displayLatestDecision = latestDecision || 'none';
-    document.getElementById("audit").innerHTML = `<div class="grid2"><div class="vstat"><b>${audit.counts.raw_signals||0}</b><span>raw signals</span></div><div class="vstat"><b>${audit.counts.staged||0}</b><span>decisions recorded</span></div><div class="vstat"><b>${audit.counts.trace||0}</b><span>trace entries</span></div></div><div style="margin-top:12px"><div class="check"><b class="ok">✓</b><div><b>Actions</b><small>${Object.entries(audit.actions||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div><div class="check"><b class="ok">✓</b><div><b>Gate status</b><small>${Object.entries(audit.gate_status||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div></div>`;
-    document.getElementById("latestIds").innerHTML = `<div class="latest-row"><div class="latest-pill"><strong>Latest signal_id</strong><br>${esc(displayLatestSignal)}</div><div class="latest-pill"><strong>Latest decision_id</strong><br>${esc(displayLatestDecision)}</div></div><div style="margin-top:10px"><button class="small-button" onclick="useLatestIds()">Use latest IDs</button></div>`;
-    latestSignalId = displayLatestSignal === 'none' ? '' : displayLatestSignal;
-    latestDecisionId = displayLatestDecision === 'none' ? '' : displayLatestDecision;
-    latestDecisionId = latestDecision === 'none' ? '' : latestDecision;
-    renderHistory(history);
-    renderSnapshots(snapshots.snapshots || []);
-    renderExperiments(experiments.experiments || []);
+    const dSig=resolvedLatestSignal||'none',dDec=latestDecision||'none';
+    document.getElementById("audit").innerHTML=`<div class="validation-grid"><div class="vstat"><b>${audit.counts.raw_signals||0}</b><span>raw signals</span></div><div class="vstat"><b>${audit.counts.staged||0}</b><span>decisions recorded</span></div><div class="vstat"><b>${audit.counts.trace||0}</b><span>trace entries</span></div></div><div style="margin-top:12px"><div class="check"><b class="ok">✓</b><div><b>Actions</b><small>${Object.entries(audit.actions||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div><div class="check"><b class="ok">✓</b><div><b>Gate status</b><small>${Object.entries(audit.gate_status||{}).map(([k,v])=>`${esc(k)}: ${v}`).join(' · ')||'none'}</small></div></div></div>`;
+    document.getElementById("latestIds").innerHTML=`<div class="latest-pill"><strong>Latest signal_id</strong><span>${esc(dSig)}</span></div><div class="latest-pill"><strong>Latest decision_id</strong><span>${esc(dDec)}</span></div><button class="small-button" style="width:100%" onclick="useLatestIds()">Use latest IDs</button>`;
+    latestSignalId=dSig==='none'?'':dSig;latestDecisionId=dDec==='none'?'':dDec;
 
-    // gates
+    renderHistory(history);renderSnapshots(snapshots.snapshots||[]);renderExperiments(experiments.experiments||[]);
+
+    // ---- gates ----
     const gp=st.gate_passed||{};
     for(let i=1;i<=5;i++){document.getElementById("g"+i).innerHTML=(gp[i]??0)+`<small> ${i===5?'executed':'reached'}</small>`;}
 
-    // trace
+    // ---- trace + activity ----
     const tr=(st.trace||[]).slice().reverse();
-    document.getElementById("trace").innerHTML = tr.length? tr.map(e=>{
-      const g=GATEDESC[e.status]||["?","o-noop","on",e.gate||1];
-      return `<div class="trace-row">
-        <div class="tr-name"><b>${esc(e.strategy)}</b> <span>· ${esc(e.event)}</span><div><code>${esc(e.t)}</code></div></div>
-        <div class="flow">${flow(g[3],e.status)}</div>
-        <div class="tr-out ${g[1]}">${g[0]}</div></div>`;
-    }).join("") : '<div class="muted">No webhooks yet.</div>';
+    document.getElementById("trace").innerHTML=tr.length?tr.map(e=>{const g=GATEDESC[e.status]||["?","o-noop","on",e.gate||1];
+      return `<div class="trace-row"><div class="tr-name"><b>${esc(e.strategy)}</b> <span>· ${esc(e.event)}</span><div><code>${esc(e.t)}</code></div></div><div class="flow">${flow(g[3],e.status)}</div><div class="tr-out ${g[1]}">${g[0]}</div></div>`;}).join(""):'<div class="muted">No webhooks yet.</div>';
+    renderActivityRail(tr);
 
-    // strategies
+    // ---- strategies ----
     document.getElementById("strats").innerHTML=reg.strategies.map(s=>{
       const wired=s.wired?'<span class="pill p-yes">✅ wired</span>':'<span class="pill p-wait">⚠ awaiting fire</span>';
       const role=s.gate==="sensor"?"regime sensor":s.gate==="counter_regime"?"5m counter-regime":(s.funded?'<span class="pill p-fund">funded</span>':"paper");
       return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td><td>${wired}</td><td class="num">${s.webhooks_received}</td><td class="muted">${s.last_seen||"—"}</td></tr>`;}).join("");
 
-    // positions
+    // ---- position book (positions page) ----
     const pos=st.positions||{},keys=Object.keys(pos);
     document.getElementById("pos-empty").style.display=keys.length?"none":"block";
     document.getElementById("pos").innerHTML=keys.map(k=>{const p=pos[k],sc=p.side==="long"?"p-long":"p-short";
       return `<tr><td>${esc(k)}</td><td><span class="pill ${sc}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${Number(p.stop_px).toLocaleString()}</td></tr>`;}).join("");
-
-    // pnl + regime
-    const mp=st.monthly_pnl||{},months=Object.keys(mp).sort(),cur=months.length?mp[months[months.length-1]]:0;
-    const el=document.getElementById("pnl");el.textContent="$"+fmt(cur);el.className="big "+(cur>=0?"pos":"neg");
+    const cur=months.length?st.monthly_pnl[months[months.length-1]]:0;
+    const pnlEl=document.getElementById("pnl");pnlEl.textContent="$"+fmt(cur);pnlEl.className="big "+(cur>=0?"pos":"neg");
     document.getElementById("pnl-month").textContent=months.length?months[months.length-1]:"no closed trades yet";
     const rg=st.regime||{};document.getElementById("regime").textContent=Object.keys(rg).length?Object.entries(rg).map(([k,v])=>`${k}: ${v}`).join(" · "):"no signal yet";
 
-    document.getElementById("foot").textContent="updated "+new Date().toLocaleTimeString()+" · auto-refresh 30s";
-  }catch(e){err.innerHTML='<div class="err">Bot unreachable (may be redeploying). Retrying…<br><code>'+esc(String(e))+'</code></div>';}
+    const now=new Date().toLocaleTimeString();
+    document.getElementById("synced").textContent="Synced "+now;
+    document.getElementById("foot").textContent="auto-refresh 30s · "+now;
+    loadRegimeChart();loadMarkets();syncMarketHeight();
+  }catch(e){err.innerHTML='<div class="err">Bot unreachable (may be redeploying). Retrying…<br><code>'+esc(String(e))+'</code></div>';document.getElementById("synced").textContent="reconnecting…";}
 }
+initGoogle();
 load();setInterval(load,30000);
 </script></body></html>
