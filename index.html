@@ -327,6 +327,27 @@
   .preset-row .pr-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
   .preset-btn{padding:7px 13px;border-radius:9px;font-size:12px;font-weight:600;background:var(--tile);border:1px solid var(--line);color:var(--dim);cursor:pointer}
   .preset-btn:hover{color:var(--txt);border-color:var(--line2);background:var(--surface2)}
+  /* ---- per-trade progress rail (3commas-style, in profit space) ---- */
+  .hl-card tr.has-rail td{border-bottom:none}
+  .ppr td{border-bottom:1px solid var(--line);padding:0 8px 16px}
+  .trade-rail{position:relative;height:52px;margin:0 6px}
+  .tr-track{position:absolute;left:0;right:0;top:26px;height:6px;border-radius:3px;background:var(--surface2);border:1px solid var(--line)}
+  .tr-fill{position:absolute;top:27px;height:5px;border-radius:2px;z-index:1}
+  .tr-fill.pos{background:var(--green)}.tr-fill.neg{background:var(--red)}
+  .tr-node{position:absolute;top:20px;width:2px;height:18px;background:var(--dim2);z-index:2}
+  .tr-node span{position:absolute;top:20px;font-size:10px;color:var(--dim);white-space:nowrap;transform:translateX(-50%)}
+  .tr-node.sl{background:rgba(255,95,110,.7)}
+  .tr-node.sl span{transform:none;left:-1px;color:var(--red)}
+  .tr-node.tp{background:rgba(47,208,122,.7)}
+  .tr-node.tp span{transform:translateX(-100%);left:2px;color:var(--green)}
+  .tr-tick{position:absolute;top:22px;width:2px;height:14px;background:var(--dim);z-index:2}
+  .tr-tick span{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim2);white-space:nowrap}
+  .tr-cursor{position:absolute;top:0;transform:translateX(-50%);text-align:center;z-index:3}
+  .tr-cursor b{display:block;font-size:11.5px;font-weight:700;line-height:1.1}
+  .tr-cursor i{display:block;font-style:normal;font-size:10px;color:var(--dim);line-height:1.2}
+  .tr-cursor::after{content:"";position:absolute;left:50%;top:24px;width:2px;height:10px;background:currentColor}
+  .tr-cursor.pos{color:var(--green)}.tr-cursor.neg{color:var(--red)}
+
   /* ---- Position Protection ---- */
   .ppe-pos{background:var(--tile);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-bottom:12px}
   .ppe-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -1146,7 +1167,35 @@ async function load(){
         const acts=strat
           ? `<div class="pos-actions"><button class="pos-btn trail${armed?' on':''}" onclick="trailPosition('${esc(strat).replace(/'/g,"\\'")}')" title="${armed?'FOX is managing this position — click to supervise':'Open Position Protection for this trade'}">${armed?'🟢 '+stageLbl:'Protect'}</button><button class="pos-btn close" onclick="closePosition('${esc(strat).replace(/'/g,"\\'")}','${esc(p.coin)}','${p.size}')" title="Market-close this position">Close</button></div>`
           : `<span class="liqdist" title="Not tracked by a bot strategy">untracked</span>`;
-        return `<tr class="live-pos"><td>${mkt}</td><td><span class="${sideCls}">${p.size} ${esc(p.coin)}</span></td><td>${(+p.position_value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} USDC</td><td>${fmtHLpx(p.entry_px)}</td><td>${markPx?fmtHLpx(markPx):'—'}</td><td>${pnlCell}</td><td>${liqCell}</td><td>${marginCell}</td><td>${fundCell}</td><td>${tpsl}</td><td>${acts}</td></tr>`;
+        // --- trade progress rail (profit space: SL … Entry … current … TP/Peak)
+        let railRow='';
+        if(bp&&bp.stop_px&&markPx){
+          const sgn=p.side==='long'?1:-1,entry=+p.entry_px,stop=+bp.stop_px;
+          const profitNow=(markPx-entry)/entry*sgn*100;
+          const stopP=(stop-entry)/entry*sgn*100;
+          const peak=prow&&prow.peak_px?+prow.peak_px:(bp.peak_px?+bp.peak_px:entry);
+          const peakP=(peak-entry)/entry*sgn*100;
+          const tpP=(pparams&&pparams.tp_pct)?pparams.tp_pct*100:null;
+          const xmax=Math.max(tpP||0,peakP,profitNow,Math.abs(stopP)*0.5,0.3);
+          const xmin=Math.min(stopP,profitNow,0)-0.0001;
+          const X=v=>Math.max(0,Math.min(100,(v-xmin)/(xmax-xmin)*100));
+          const e0=X(0),cur=X(profitNow);
+          const fill=profitNow>=0?`left:${e0}%;width:${Math.max(cur-e0,0.4)}%`:`left:${cur}%;width:${Math.max(e0-cur,0.4)}%`;
+          const tpPx2=(tpP!=null&&bp)?entry*(p.side==='long'?1+tpP/100:1-tpP/100):null;
+          const rightLbl=tpP!=null?`TP ${fmtHLpx(tpPx2)}`:(peakP>0.05?`Peak ${fmtHLpx(peak)}`:'');
+          const rightX=X(tpP!=null?tpP:peakP);
+          const showRight=!!rightLbl&&(rightX-cur>=8)&&(rightX-e0>=8);   // yield to the cursor when clustered
+          const showEntryLbl=Math.abs(e0-cur)>=7;
+          railRow=`<tr class="ppr"><td colspan="11"><div class="trade-rail">
+            <div class="tr-track"></div>
+            <div class="tr-fill ${profitNow>=0?'pos':'neg'}" style="${fill}"></div>
+            <div class="tr-node sl" style="left:${X(stopP)}%"><span>SL ${fmtHLpx(stop)}</span></div>
+            <div class="tr-tick" style="left:${e0}%">${showEntryLbl?`<span>Entry ${fmtHLpx(entry)}</span>`:''}</div>
+            ${showRight?`<div class="tr-node tp" style="left:${rightX}%"><span>${rightLbl}</span></div>`:''}
+            <div class="tr-cursor ${profitNow>=0?'pos':'neg'}" style="left:${cur}%"><b>${protPct(profitNow)}</b><i>${fmtHLpx(markPx)}</i></div>
+          </div></td></tr>`;
+        }
+        return `<tr class="live-pos${railRow?' has-rail':''}"><td>${mkt}</td><td><span class="${sideCls}">${p.size} ${esc(p.coin)}</span></td><td>${(+p.position_value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} USDC</td><td>${fmtHLpx(p.entry_px)}</td><td>${markPx?fmtHLpx(markPx):'—'}</td><td>${pnlCell}</td><td>${liqCell}</td><td>${marginCell}</td><td>${fundCell}</td><td>${tpsl}</td><td>${acts}</td></tr>${railRow}`;
       }).join('');
     }else{
       posWrap.style.display='none';posEmpty.style.display='block';
