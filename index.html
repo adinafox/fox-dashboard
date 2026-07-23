@@ -165,6 +165,12 @@
   .hl-tab.active{color:var(--txt);border-bottom-color:var(--accent)}
   .hl-tab .count-chip{margin-left:7px}
   .hist-time{font-size:12px;color:var(--dim);white-space:nowrap}
+  .pos-market{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:8px;font-weight:700;font-family:var(--mono)}
+  .pos-market.long{background:rgba(47,208,122,.13)}
+  .pos-market.short{background:rgba(255,95,110,.13)}
+  .pos-market b{color:var(--txt)}
+  .pos-market.long span{color:var(--green);font-size:12px}
+  .pos-market.short span{color:var(--red);font-size:12px}
   .pos-actions{display:flex;gap:6px}
   .pos-btn{font-size:11px;font-weight:700;padding:5px 11px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:var(--tile);transition:background .12s,border-color .12s}
   .pos-btn.trail{color:var(--accent);border-color:rgba(91,139,255,.4)}
@@ -410,7 +416,7 @@
               <button class="hl-tab" data-tab="history" onclick="setPosTab('history')">Trade history</button>
             </div>
             <div id="pos-view">
-              <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Side</th><th class="num">Size</th><th class="num">Value</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">P&amp;L (ROE)</th><th class="num">Liq.</th><th class="num">Margin</th><th class="num">Funding</th><th class="num">Lev.</th><th>Manage</th></tr></thead><tbody id="live-pos"></tbody></table></div>
+              <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Size</th><th>Position Value</th><th>Entry Price</th><th>Mark Price</th><th>PNL (ROE %)</th><th>Liq. Price</th><th>Margin</th><th>Funding</th><th>Manage</th></tr></thead><tbody id="live-pos"></tbody></table></div>
               <div id="live-pos-empty"></div>
             </div>
             <div id="balances-view" style="display:none">
@@ -994,30 +1000,25 @@ async function load(){
     if(live.length){
       posWrap.style.display='';posEmpty.style.display='none';
       const bookByCoin={};Object.entries(st.positions||{}).forEach(([name,bp])=>{if(bp&&bp.coin)bookByCoin[bp.coin]=name;});
+      const fmtHLpx=v=>(+v).toLocaleString('en-US',{maximumFractionDigits:+v>=1000?0:4});
       document.getElementById("live-pos").innerHTML=live.map(p=>{
         const markPx=p.mark_px||(p.size?p.position_value/p.size:0);
         const roe=(p.return_on_equity!=null?p.return_on_equity:(p.leverage&&p.position_value?p.unrealized_pnl/(p.position_value/p.leverage)*100:null));
-        const roeCls=roe==null?'':(roe>=0?'pos':'neg');
-        // P&L (ROE) combined cell
-        const pnlCell=`<span class="${p.unrealized_pnl>=0?'pos':'neg'}">${fmt(p.unrealized_pnl)}</span>${roe!=null?`<div class="liqdist ${roeCls}">${fmt(roe)}%</div>`:''}`;
-        // liquidation
-        let liqCell='<span class="muted">N/A</span>';
-        if(p.liquidation_px){
-          const liq=Number(p.liquidation_px),distPct=markPx?Math.abs((markPx-liq)/markPx*100):null;
-          const distColor=distPct==null?'var(--dim)':distPct>15?'var(--green)':distPct>5?'var(--amber)':'var(--red)';
-          const health=distPct==null?'':`<div class="liqhealth"><i style="width:${Math.max(4,100-Math.min(distPct*3,100))}%;background:${distColor}"></i></div>`;
-          liqCell=`<span style="color:${distColor}">${liq.toLocaleString()}</span>${distPct!=null?`<div class="liqdist">${distPct.toFixed(1)}% away</div>`:''}${health}`;
-        }
-        // funding (HL convention: sinceOpen paid shows negative)
+        const sideCls=p.side==='long'?'pos':'neg';
+        const mkt=`<span class="pos-market ${p.side}"><b>${esc(p.coin)}</b><span>${p.leverage||'—'}x</span></span>`;
+        const pnl=p.unrealized_pnl;
+        const pnlCell=`<span class="${pnl>=0?'pos':'neg'}">${pnl<0?'-':''}$${Math.abs(pnl).toFixed(2)}${roe!=null?` (${roe.toFixed(1)}%)`:''}</span>`;
+        const liqCell=p.liquidation_px?fmtHLpx(p.liquidation_px):'<span class="muted">N/A</span>';
+        const mtype=p.margin_type?p.margin_type.charAt(0).toUpperCase()+p.margin_type.slice(1):'';
+        const marginCell=p.margin_used!=null?`$${(+p.margin_used).toFixed(2)}${mtype?` (${mtype})`:''}`:'—';
         const fund=-(p.funding_since_open||0);
-        const fundCell=`<span class="${fund>=0?'pos':'neg'}">${fund>=0?'+':'−'}$${Math.abs(fund).toFixed(2)}</span>`;
-        const marginCell=`${p.margin_used!=null?usd(p.margin_used):'—'}${p.margin_type?`<div class="liqdist">${esc(p.margin_type)}</div>`:''}`;
-        // manage actions (only when the bot tracks this coin as a strategy)
+        const fundCls=fund>0.004?'pos':fund<-0.004?'neg':'';
+        const fundCell=`<span class="${fundCls}">${fund<0?'-':''}$${Math.abs(fund).toFixed(2)}</span>`;
         const strat=bookByCoin[p.coin]||'';
         const acts=strat
           ? `<div class="pos-actions"><button class="pos-btn trail" onclick="trailPosition('${esc(strat).replace(/'/g,"\\'")}')" title="Set a trailing stop for this position">Trail</button><button class="pos-btn close" onclick="closePosition('${esc(strat).replace(/'/g,"\\'")}','${esc(p.coin)}','${p.size}')" title="Market-close this position">Close</button></div>`
           : `<span class="liqdist" title="Not tracked by a bot strategy">untracked</span>`;
-        return `<tr class="live-pos"><td><span class="coin-badge"><span class="coin-dot" style="background:${coinColor(p.coin)}"></span>${esc(p.coin)}</span></td><td><span class="pill ${p.side==='long'?'p-long':'p-short'}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${usd(p.position_value)}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${markPx?markPx.toLocaleString(undefined,{maximumFractionDigits:2}):'—'}</td><td class="num">${pnlCell}</td><td class="num">${liqCell}</td><td class="num">${marginCell}</td><td class="num">${fundCell}</td><td class="num">${p.leverage||'—'}×</td><td>${acts}</td></tr>`;
+        return `<tr class="live-pos"><td>${mkt}</td><td><span class="${sideCls}">${p.size} ${esc(p.coin)}</span></td><td>${(+p.position_value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} USDC</td><td>${fmtHLpx(p.entry_px)}</td><td>${markPx?fmtHLpx(markPx):'—'}</td><td>${pnlCell}</td><td>${liqCell}</td><td>${marginCell}</td><td>${fundCell}</td><td>${acts}</td></tr>`;
       }).join('');
     }else{
       posWrap.style.display='none';posEmpty.style.display='block';
