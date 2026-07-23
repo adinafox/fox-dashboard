@@ -722,18 +722,25 @@ function renderHistory(history){
 function renderSnapshots(s){
   const el=document.getElementById("snapshots");
   if(!s||!s.length){el.innerHTML='<div class="muted">No snapshots recorded yet.</div>';return;}
-  el.innerHTML=s.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.strategy||'')}</b><small>${esc(i.event||'')} · ${esc(i.t||'')}</small></div></div>`).join("");
+  el.innerHTML=s.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.strategy||'')}</b><small>${esc(i.event||'')} · ${locTime(i.t)}</small></div></div>`).join("");
 }
 function renderExperiments(x){
   const el=document.getElementById("experiments");
   if(!x||!x.length){el.innerHTML='<div class="muted">No experiments registered.</div>';return;}
   el.innerHTML=x.slice(-3).map(i=>`<div class="check"><b class="ok">✓</b><div><b>${esc(i.id||'')}</b><small>${esc(i.name||'')} · ${esc(i.status||'')}</small></div></div>`).join("");
 }
+function parseBotTime(s){                                  // bot logs UTC (Railway)
+  const d=new Date(String(s||"").replace(" ","T")+"Z");
+  return isNaN(d.getTime())?null:d;
+}
+function locTime(s){                                       // display in Bucharest
+  const d=parseBotTime(s);
+  return d?d.toLocaleDateString('en-GB',{timeZone:'Europe/Bucharest',day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{timeZone:'Europe/Bucharest',hour12:false}):esc(String(s||''));
+}
 function relTime(s){
-  const d=new Date(String(s||"").replace(" ","T"));
-  if(isNaN(d.getTime()))return esc(s);
+  const d=parseBotTime(s);
+  if(!d)return esc(s);
   const diff=(Date.now()-d.getTime())/1000;
-  if(diff<0)return "just now";
   if(diff<60)return "just now";
   if(diff<3600)return Math.floor(diff/60)+"m ago";
   if(diff<86400)return Math.floor(diff/3600)+"h ago";
@@ -1113,14 +1120,14 @@ async function load(){
     // ---- trace + activity ----
     const tr=(st.trace||[]).slice().reverse();
     document.getElementById("trace").innerHTML=tr.length?tr.map(e=>{const g=GATEDESC[e.status]||["?","o-noop","on",e.gate||1];
-      return `<div class="trace-row"><div class="tr-name"><b>${esc(e.strategy)}</b> <span>· ${esc(e.event)}</span><div><code>${esc(e.t)}</code></div></div><div class="flow">${flow(g[3],e.status)}</div><div class="tr-out ${g[1]}">${g[0]}</div></div>`;}).join(""):'<div class="muted">No webhooks yet.</div>';
+      return `<div class="trace-row"><div class="tr-name"><b>${esc(e.strategy)}</b> <span>· ${esc(e.event)}</span><div><code>${locTime(e.t)}</code></div></div><div class="flow">${flow(g[3],e.status)}</div><div class="tr-out ${g[1]}">${g[0]}</div></div>`;}).join(""):'<div class="muted">No webhooks yet.</div>';
     renderActivityRail(tr);
 
     // ---- strategies ----
     document.getElementById("strats").innerHTML=reg.strategies.map(s=>{
       const wired=s.wired?'<span class="pill p-yes">✅ wired</span>':'<span class="pill p-wait">⚠ awaiting fire</span>';
       const role=s.gate==="sensor"?"regime sensor":s.gate==="counter_regime"?"5m counter-regime":(s.funded?'<span class="pill p-fund">funded</span>':"paper");
-      return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td><td>${wired}</td><td class="num">${s.webhooks_received}</td><td class="muted">${s.last_seen||"—"}</td></tr>`;}).join("");
+      return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td><td>${wired}</td><td class="num">${s.webhooks_received}</td><td class="muted">${s.last_seen?locTime(s.last_seen):"—"}</td></tr>`;}).join("");
 
     // ---- position book (positions page) ----
     const pos=st.positions||{},keys=Object.keys(pos);
