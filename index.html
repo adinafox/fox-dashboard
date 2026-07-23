@@ -762,9 +762,9 @@ function renderActivityRail(trace){
 }
 
 // ---- native live markets list ----
-// crypto: Binance + CoinGecko (keyless, CORS). TradFi: Twelve Data (free key, public — rotate anytime).
+// crypto: Binance + CoinGecko (keyless, CORS). TradFi: proxied by the bot (/market-tradfi,
+// server-cached 10 min so the free quota survives any number of open tabs; key lives on Railway).
 // logos: jsDelivr crypto-icons (crypto) + FMP static images (ETFs); letter badge fallback on error.
-const TWELVE_KEY="0cd4ec0222d1428fb73694ac1619f407";
 const CRYPTO_ICO=s=>`https://cdn.jsdelivr.net/gh/atomiclabs/cryptocurrency-icons/128/color/${s}.png`;
 const FMP_LOGO=s=>`https://financialmodelingprep.com/image-stock/${s}.png`;
 let tradfiCache=[],tradfiAt=0;
@@ -774,12 +774,12 @@ function mktRow(r){
   return `<div class="mkt-row">${ico}<div class="mkt-name"><b>${esc(r.name)}</b><small>${esc(r.sub)}</small></div><div class="mkt-quote"><b>${r.price}</b>${chg}</div></div>`;
 }
 async function fetchTradfi(){
-  if(Date.now()-tradfiAt<55000&&tradfiCache.length)return tradfiCache;   // free tier: 8 credits/min → throttle
+  if(Date.now()-tradfiAt<120000&&tradfiCache.length)return tradfiCache;  // bot caches server-side anyway
   try{
-    const d=await fetch(`https://api.twelvedata.com/quote?symbol=SPY,QQQ,UUP&apikey=${TWELVE_KEY}`).then(r=>r.json());
-    const get=(sym,name,letter,bg)=>{const q=d&&d[sym];if(!q||q.code||q.close==null)return null;
-      return {logo:FMP_LOGO(sym),letter,bg,name,sub:sym,price:'$'+(+q.close).toLocaleString('en-US',{maximumFractionDigits:2}),chg:parseFloat(q.percent_change)};};
-    const rows=[get('SPY','S&P 500','S','#3f7fd6'),get('QQQ','Nasdaq 100','Q','#7d6cff'),get('UUP','US Dollar Index','$','#2fb37a')].filter(Boolean);
+    const d=await fetch(BOT+"/market-tradfi").then(r=>r.json());
+    const meta={SPY:['S&P 500','S','#3f7fd6'],QQQ:['Nasdaq 100','Q','#7d6cff'],UUP:['US Dollar Index','$','#2fb37a']};
+    const rows=(d&&d.quotes||[]).map(q=>{const m=meta[q.symbol];if(!m)return null;
+      return {logo:FMP_LOGO(q.symbol),letter:m[1],bg:m[2],name:m[0],sub:q.symbol,price:'$'+(+q.close).toLocaleString('en-US',{maximumFractionDigits:2}),chg:+q.percent_change};}).filter(Boolean);
     if(rows.length){tradfiCache=rows;tradfiAt=Date.now();}
     return rows.length?rows:tradfiCache;
   }catch(e){return tradfiCache;}
