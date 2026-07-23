@@ -420,6 +420,7 @@
             </div>
             <div id="balances-view" style="display:none">
               <div style="overflow-x:auto"><table><thead><tr><th>Asset</th><th class="num">Total balance</th><th class="num">Available balance</th><th class="num">USDC value</th></tr></thead><tbody id="balances-body"></tbody></table></div>
+              <div class="sub" style="margin-top:10px">Unified account: spot USDC on hold backs the perps equity — portfolio value counts it once (spot available + perps equity).</div>
               <div id="balances-empty" style="display:none"><div class="empty-state"><div class="es-icon">💰</div><b>No balances</b><span>Deposits on your Hyperliquid account will appear here.</span></div></div>
             </div>
             <div id="history-view" style="display:none">
@@ -920,7 +921,7 @@ async function load(){
           <div class="balance-val">${usd(pv)}</div></div>
           ${unrealized!=null?`<span class="delta ${dCls}" title="Unrealized P&L on open positions">${unrealized>=0?'▲':'▼'} ${fmt(unrealized)}</span>`:''}</div>
         <div class="substats">
-          <div class="substat"><small>Spot USDC</small><b>${pf.spot_usdc!=null?usd(pf.spot_usdc):'—'}</b></div>
+          <div class="substat"><small>Spot · available</small><b>${pf.spot_usdc_available!=null?usd(pf.spot_usdc_available):(pf.spot_usdc!=null?usd(pf.spot_usdc):'—')}</b></div>
           <div class="substat"><small>Perps equity</small><b>${usd(pf.account_value)}</b></div>
           <div class="substat"><small>Margin used</small><b>${usd(pf.margin_used)}</b></div>
           <div class="substat"><small>Open notional</small><b>${usd(pf.notional)}</b></div>
