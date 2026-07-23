@@ -304,10 +304,6 @@
   .pnlbar-val{text-align:right;font-family:var(--mono);font-size:13px;font-weight:700}
 
   /* ---- position summary + empty ---- */
-  .pos-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
-  .pos-sum{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
-  .pos-sum small{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-  .pos-sum b{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums}
   .empty-state{text-align:center;padding:34px 16px}
   .empty-state .es-icon{font-size:30px;opacity:.35;margin-bottom:10px}
   .empty-state b{display:block;color:var(--txt);font-size:14px;margin-bottom:4px;font-weight:700}
@@ -414,7 +410,6 @@
               <button class="hl-tab" data-tab="history" onclick="setPosTab('history')">Trade history</button>
             </div>
             <div id="pos-view">
-              <div id="pos-summary"></div>
               <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Side</th><th class="num">Size</th><th class="num">Value</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">P&amp;L (ROE)</th><th class="num">Liq.</th><th class="num">Margin</th><th class="num">Funding</th><th class="num">Lev.</th><th>Manage</th></tr></thead><tbody id="live-pos"></tbody></table></div>
               <div id="live-pos-empty"></div>
             </div>
@@ -995,17 +990,9 @@ async function load(){
     // ---- LIVE POSITIONS ----
     renderBalances(pf);
     document.getElementById("pos-count-chip").textContent=live.length;
-    const posWrap=document.getElementById("pos-table-wrap"),posSummary=document.getElementById("pos-summary"),posEmpty=document.getElementById("live-pos-empty");
+    const posWrap=document.getElementById("pos-table-wrap"),posEmpty=document.getElementById("live-pos-empty");
     if(live.length){
-      posWrap.style.display='';posSummary.style.display='';posEmpty.style.display='none';
-      const totNotional=live.reduce((a,p)=>a+(p.position_value||0),0);
-      const totMargin=live.reduce((a,p)=>a+(p.margin_used||0),0);
-      const uCls=liveUnrealized>=0?'pos':'neg';
-      posSummary.innerHTML=`
-        <div class="pos-sum"><small>Open positions</small><b>${live.length}</b></div>
-        <div class="pos-sum"><small>Total notional</small><b>${usd(totNotional)}</b></div>
-        <div class="pos-sum"><small>Unrealized P&amp;L</small><b class="${uCls}">${signedUsd(liveUnrealized)}</b></div>
-        <div class="pos-sum"><small>Margin used</small><b>${totMargin?usd(totMargin):'—'}</b></div>`;
+      posWrap.style.display='';posEmpty.style.display='none';
       const bookByCoin={};Object.entries(st.positions||{}).forEach(([name,bp])=>{if(bp&&bp.coin)bookByCoin[bp.coin]=name;});
       document.getElementById("live-pos").innerHTML=live.map(p=>{
         const markPx=p.mark_px||(p.size?p.position_value/p.size:0);
@@ -1033,7 +1020,7 @@ async function load(){
         return `<tr class="live-pos"><td><span class="coin-badge"><span class="coin-dot" style="background:${coinColor(p.coin)}"></span>${esc(p.coin)}</span></td><td><span class="pill ${p.side==='long'?'p-long':'p-short'}">${p.side}</span></td><td class="num">${p.size}</td><td class="num">${usd(p.position_value)}</td><td class="num">${Number(p.entry_px).toLocaleString()}</td><td class="num">${markPx?markPx.toLocaleString(undefined,{maximumFractionDigits:2}):'—'}</td><td class="num">${pnlCell}</td><td class="num">${liqCell}</td><td class="num">${marginCell}</td><td class="num">${fundCell}</td><td class="num">${p.leverage||'—'}×</td><td>${acts}</td></tr>`;
       }).join('');
     }else{
-      posWrap.style.display='none';posSummary.style.display='none';posEmpty.style.display='block';
+      posWrap.style.display='none';posEmpty.style.display='block';
       posEmpty.innerHTML=`<div class="empty-state"><div class="es-icon">🗂️</div><b>No open positions</b><span>${pf.available?'The bot holds nothing on Hyperliquid right now. New entries appear here the moment they fill.':'Connect the exchange account to see live positions here.'}</span></div>`;
     }
 
