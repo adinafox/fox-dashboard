@@ -327,6 +327,31 @@
   .preset-row .pr-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
   .preset-btn{padding:7px 13px;border-radius:9px;font-size:12px;font-weight:600;background:var(--tile);border:1px solid var(--line);color:var(--dim);cursor:pointer}
   .preset-btn:hover{color:var(--txt);border-color:var(--line2);background:var(--surface2)}
+  /* ---- Position Protection ---- */
+  .ppe-pos{background:var(--tile);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-bottom:12px}
+  .ppe-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .ppe-live{color:var(--green);text-shadow:0 0 8px var(--green)}
+  .ppe-head>b{font-size:14px}
+  .ppe-prof{color:var(--dim);font-size:12px}
+  .ppe-status{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.6px;padding:4px 10px;border-radius:20px;background:rgba(47,208,122,.14);color:var(--green);border:1px solid rgba(47,208,122,.35)}
+  .ppe-stages{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .ppe-stage{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--surface2);border:1px solid var(--line);color:var(--dim2)}
+  .ppe-stage.done{color:var(--dim);border-color:var(--line2)}
+  .ppe-stage.now{background:rgba(47,208,122,.15);color:var(--green);border-color:rgba(47,208,122,.45)}
+  .ppe-arrow{color:var(--dim2);font-size:11px}
+  .ppe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+  .ppe-explain{font-size:12.5px;color:var(--dim);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.55}
+  .ppe-explain b{color:var(--txt)}
+  .ppe-last{margin-top:6px;font-size:12px;color:var(--dim)}
+  .ppe-tl{margin-top:10px}
+  .ppe-tl summary{cursor:pointer;font-size:12px;color:var(--accent);font-weight:600}
+  .prof-chips{display:flex;gap:8px;flex-wrap:wrap}
+  .prof-chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--tile);border:1px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer;text-align:left}
+  .prof-chip:hover{border-color:var(--accent);background:var(--surface2)}
+  .prof-chip b{font-size:12.5px;color:var(--txt)}
+  .prof-chip small{font-size:10.5px;color:var(--dim)}
+  .ppe-adv{margin-top:14px}
+  .ppe-adv summary{cursor:pointer;font-size:12px;color:var(--dim);font-weight:600}
   .trail-badges{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 16px}
   .trail-badge{font-size:11px;font-weight:600;padding:5px 11px;border-radius:20px;background:rgba(47,208,122,.12);color:var(--green);border:1px solid rgba(47,208,122,.3)}
   .trail-badge.idle{background:rgba(138,151,171,.1);color:var(--dim);border-color:var(--line2)}
@@ -438,7 +463,7 @@
             </div>
           </div>
 
-          <div class="card"><h2>Trailing stop control</h2><div id="trailing-control"><div class="muted">Loading…</div></div></div>
+          <div class="card"><h2>Position Protection</h2><div id="trailing-control"><div class="muted">Loading…</div></div></div>
         </section>
 
         <section class="page" data-page="positions">
@@ -577,29 +602,6 @@ async function setBtcRegime(direction){
   try{const r=await fetch(BOT+"/control/regime",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({timeframe,direction})});const data=await r.json();if(!data.ok)throw new Error(data.error||"control rejected");load();}
   catch(e){onControlError(e);}
 }
-async function setTrailing(enabled){
-  const body={enabled};
-  if(enabled){
-    const strategy=document.getElementById("trail-strategy").value;
-    body.strategy=strategy;
-    for(const [id,key] of [["trail-be-trigger","breakeven_trigger_percent"],["trail-be-offset","breakeven_offset_percent"],["trail-trigger","trailing_trigger_percent"],["trail-distance","trail_distance_percent"]]){
-      const value=Number(document.getElementById(id).value);
-      if(!Number.isFinite(value)||value<=0){alert("Enter a positive percentage for every trailing field.");return;}
-      body[key]=value;
-    }
-    const tpv=Number(document.getElementById("trail-tp").value);
-    if(!Number.isFinite(tpv)||tpv<0){alert("Take profit % must be 0 (off) or a positive number.");return;}
-    body.take_profit_percent=tpv;
-  }
-  const h=controlHeaders();if(!h)return needSignIn();
-  try{
-    const r=await fetch(BOT+"/control/trailing",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
-    const data=await r.json();
-    if(!data.ok)throw new Error(data.error||"control rejected");
-    load();
-  }catch(e){onControlError(e);}
-}
-
 function setPosTab(t){
   const views={positions:'pos-view',balances:'balances-view',history:'history-view'};
   Object.entries(views).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.style.display=k===t?'':'none';});
@@ -658,39 +660,140 @@ async function closePosition(strategy,coin,size){
 }
 function trailPosition(strategy){
   showPage('overview');
-  const sel=document.getElementById("trail-strategy");
-  if(sel&&strategy){sel.value=strategy;if(typeof updateTrailDiagram==='function')updateTrailDiagram();}
+  const sel=document.getElementById("prot-strategy");
+  if(sel&&strategy)sel.value=strategy;
   const wrap=document.getElementById("trailing-control");
   const card=wrap&&wrap.closest('.card');
   if(card){card.scrollIntoView({behavior:'smooth',block:'center'});
     card.style.transition='box-shadow .3s';card.style.boxShadow='0 0 0 2px var(--accent)';
     setTimeout(()=>{card.style.boxShadow='';},1600);}
 }
-function setTrailPreset(name){
-  const p={conservative:[3,0.2,5,3],balanced:[5,0.2,8,5],aggressive:[8,0.3,12,8]}[name];
-  if(!p)return;
-  document.getElementById("trail-be-trigger").value=p[0];
-  document.getElementById("trail-be-offset").value=p[1];
-  document.getElementById("trail-trigger").value=p[2];
-  document.getElementById("trail-distance").value=p[3];
-  updateTrailDiagram();
+// ---- Position Protection: controls + renderer ----
+async function protControl(body,okMsg){
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{
+    const r=await fetch(BOT+"/control/protection",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||"control rejected");
+    if(okMsg)console.log(okMsg);
+    load();
+  }catch(e){onControlError(e);}
 }
-function updateTrailDiagram(){
-  const el=document.getElementById("trail-diagram");if(!el)return;
-  const be=+document.getElementById("trail-be-trigger").value||0;
-  const ts=+document.getElementById("trail-trigger").value||0;
-  const td=+document.getElementById("trail-distance").value||0;
-  const tpEl=document.getElementById("trail-tp");
-  const tp=tpEl?(+tpEl.value||0):0;
-  const max=Math.max(be,ts,tp,1)*1.28,pos=v=>4+(v/max)*92;
-  el.innerHTML=`<div class="trail-rail"></div>
-    <div class="trail-mark" style="left:${pos(0)}%"><div class="lbl">Entry</div><div class="dot" style="background:var(--dim)"></div><div class="val">0%</div></div>
-    <div class="trail-mark" style="left:${pos(be)}%"><div class="lbl">Breakeven</div><div class="dot" style="background:var(--amber)"></div><div class="val">+${be}%</div></div>
-    <div class="trail-mark low" style="left:${pos(ts)}%"><div class="lbl">Trail starts</div><div class="dot" style="background:var(--green)"></div><div class="val">+${ts}%</div></div>
-    ${tp>0?`<div class="trail-mark" style="left:${pos(tp)}%"><div class="lbl">Take profit</div><div class="dot" style="background:var(--accent)"></div><div class="val">+${tp}%</div></div>`:''}`;
-  const cap=document.getElementById("trail-caption");
-  if(cap)cap.innerHTML=`At <b>+${be}%</b> the stop jumps to breakeven. Past <b>+${ts}%</b> it trails <b>${td}%</b> behind the peak, ratcheting up as price climbs.${tp>0?` At <b>+${tp}%</b> the take profit closes the whole trade — whichever fires first wins.`:''} <span class="muted">Percentages are price moves from entry, not leveraged ROE.</span>`;
+function setProtectionEnabled(on){protControl({enabled:on});}
+function assignProtProfile(){
+  const s=document.getElementById("prot-strategy"),p=document.getElementById("prot-profile");
+  if(!s||!p||!p.value)return alert("Pick a profile first.");
+  protControl({strategy:s.value,profile:p.value});
 }
+function saveProtProfile(){
+  const name=(document.getElementById("prot-name").value||"Custom").trim();
+  const g=id=>{const v=Number(document.getElementById(id).value);return Number.isFinite(v)?v:NaN;};
+  const be=g("prot-be"),off=g("prot-off"),tr=g("prot-tr"),td=g("prot-td"),tp=g("prot-tp"),tpt=g("prot-tpt");
+  if([be,off,tr,td].some(v=>!(v>0)))return alert("Breakeven, offset, trail activation and distance must be positive percentages.");
+  if(tr<be)return alert("Trail activation must be at least the breakeven trigger.");
+  if(!(tp>=0)||!(tpt>=0))return alert("TP fields must be 0 (off) or positive.");
+  const params={be_trigger_pct:be/100,be_offset_pct:off/100,trail_trigger_pct:tr/100,
+                trail_distance_pct:td/100,tp_pct:tp>0?tp/100:null,tp_trail_pct:tpt>0?tpt/100:null};
+  protControl({profile_name:name,params});
+}
+function protEditProfile(name){
+  const prof=(window.protData.profiles||{})[name];if(!prof)return;
+  const p=prof.params,set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  const adv=document.getElementById("prot-advanced");if(adv)adv.open=true;
+  set("prot-name",name);set("prot-be",+(p.be_trigger_pct*100).toFixed(3));set("prot-off",+(p.be_offset_pct*100).toFixed(3));
+  set("prot-tr",+(p.trail_trigger_pct*100).toFixed(3));set("prot-td",+(p.trail_distance_pct*100).toFixed(3));
+  set("prot-tp",p.tp_pct?+(p.tp_pct*100).toFixed(3):0);set("prot-tpt",p.tp_trail_pct?+(p.tp_trail_pct*100).toFixed(3):0);
+}
+function protPct(n){return (n>=0?'+':'')+n.toFixed(2)+'%';}
+function renderProtection(prot,pf,st){
+  const el=document.getElementById("trailing-control");if(!el)return;
+  const P=prot||{},profiles=P.profiles||{},assigns=P.assignments||{},positions=P.positions||{};
+  const STAGES=[['initial','Initial Risk'],['breakeven','Breakeven'],['trailing','Trailing'],['tp_trail','TP Trail'],['closed','Exit']];
+  const markBy={};(pf.positions||[]).forEach(x=>{markBy[x.coin]=x.mark_px||(x.size?x.position_value/x.size:0);});
+
+  // --- per-position protection status
+  const posCards=Object.entries(positions).map(([name,ps])=>{
+    const s=ps.side==='long'?1:-1,entry=+ps.entry_px||0,stop=+ps.stop_px||0,peak=+ps.peak_px||entry;
+    const mark=markBy[ps.coin]||peak;
+    const profitNow=entry?((mark-entry)/entry)*s*100:0;
+    const locked=entry?((stop-entry)/entry)*s*100:0;
+    const peakP=entry?((peak-entry)/entry)*s*100:0;
+    const dist=mark?Math.abs(mark-stop)/mark*100:0;
+    const stageKey=ps.tp_armed?'tp_trail':(ps.stage||'initial');
+    const idx=STAGES.findIndex(x=>x[0]===stageKey);
+    const chips=STAGES.map((x,i)=>`<span class="ppe-stage${i<idx?' done':''}${i===idx?' now':''}">${x[1]}</span>`).join('<span class="ppe-arrow">→</span>');
+    const p=ps.params||{},be=(p.be_trigger_pct||0)*100,tr=(p.trail_trigger_pct||0)*100,td=(p.trail_distance_pct||0)*100,
+          tp=(p.tp_pct||0)*100,tpt=(p.tp_trail_pct||0)*100;
+    // rule explanation
+    let why='';
+    if(stageKey==='initial'){
+      const rem=Math.max(be-Math.max(profitNow,peakP),0);
+      why=`<b>Why hasn't the stop moved?</b> Current gain <b>${protPct(profitNow)}</b> · Breakeven trigger <b>+${be.toFixed(2)}%</b> · Remaining <b>${rem.toFixed(2)}%</b>.`;
+    }else if(stageKey==='breakeven'){
+      const rem=Math.max(tr-peakP,0);
+      why=`<b>Breakeven locked.</b> Trailing arms at <b>+${tr.toFixed(2)}%</b> (peak so far ${protPct(peakP)}) · Remaining <b>${rem.toFixed(2)}%</b>.`;
+    }else if(stageKey==='trailing'){
+      why=`<b>Trailing.</b> Stop follows the peak <b>${td.toFixed(2)}%</b> behind — every new high ratchets it up.${tp?` Take profit at <b>+${tp.toFixed(2)}%</b>${tpt?` arms a ${tpt.toFixed(2)}% giveback trail`:''}.`:''}`;
+    }else if(stageKey==='tp_trail'){
+      why=`<b>Winner running.</b> Target reached — closes when price gives back <b>${tpt.toFixed(2)}%</b> from the peak (${fmtHLpxSafe(peak)}).`;
+    }
+    const lastAct=(ps.timeline||[]).filter(e=>e.action!=='ENTRY').slice(-1)[0];
+    const lastLine=lastAct?`<div class="ppe-last">Last action: <b>${esc(lastAct.action)}</b>${lastAct.old_stop!=null?` — stop ${fmtHLpxSafe(lastAct.old_stop)} → ${fmtHLpxSafe(lastAct.new_stop)}`:(lastAct.new_stop!=null?` — stop ${fmtHLpxSafe(lastAct.new_stop)}`:'')}${lastAct.rule?` · rule ${esc(lastAct.rule)}`:''} · ${relTime(lastAct.t)}</div>`:'';
+    const tl=(ps.timeline||[]).slice().reverse();
+    const tlHtml=tl.length?`<details class="ppe-tl"><summary>Timeline · ${tl.length} events</summary>${tl.map(e=>`<div class="check"><b class="${e.ok===false?'no':'ok'}">${e.ok===false?'!':'✓'}</b><div><b>${esc(e.action||'')}</b>${e.rule?` <span class="tag">${esc(e.rule)}</span>`:''}<small>${e.old_stop!=null?`stop ${fmtHLpxSafe(e.old_stop)} → ${fmtHLpxSafe(e.new_stop)} · `:(e.new_stop!=null?`stop ${fmtHLpxSafe(e.new_stop)} · `:'')}${e.px!=null?`px ${fmtHLpxSafe(e.px)} · `:''}${esc(e.reason||'')} ${e.reason?'· ':''}${relTime(e.t)}</small></div></div>`).join('')}</details>`:'';
+    return `<div class="ppe-pos">
+      <div class="ppe-head"><span class="ppe-live">●</span><b>${esc(ps.coin)} ${esc(ps.side)}</b><span class="ppe-prof">profile <b>${esc(ps.profile||'—')}</b>${ps.profile_version?` v${ps.profile_version}`:''}</span><span class="ppe-status">${P.enabled?'ACTIVE':'ENGINE OFF'}</span></div>
+      <div class="ppe-stages">${chips}</div>
+      <div class="ppe-grid">
+        <div class="substat"><small>Current Stop</small><b>${fmtHLpxSafe(stop)}</b></div>
+        <div class="substat"><small>Current Profit</small><b class="${profitNow>=0?'pos':'neg'}">${protPct(profitNow)}</b></div>
+        <div class="substat"><small>Locked Profit</small><b class="${locked>=0?'pos':'neg'}">${protPct(locked)}</b></div>
+        <div class="substat"><small>Highest Price</small><b>${fmtHLpxSafe(peak)}</b></div>
+        <div class="substat"><small>Distance to Stop</small><b>${dist.toFixed(2)}%</b></div>
+        <div class="substat"><small>Stop Updates</small><b>${ps.stop_updates||0}</b></div>
+      </div>
+      <div class="ppe-explain">${why}${lastLine}</div>
+      ${tlHtml}
+    </div>`;
+  }).join('');
+
+  // --- profiles + assignment
+  const profChips=Object.entries(profiles).map(([n,pr])=>{const p=pr.params;
+    const sum=`BE ${(p.be_trigger_pct*100).toFixed(1)}% · Trail ${(p.trail_trigger_pct*100).toFixed(1)}%/${(p.trail_distance_pct*100).toFixed(1)}%${p.tp_pct?` · TP ${(p.tp_pct*100).toFixed(1)}%`:''}${p.tp_trail_pct?`→${(p.tp_trail_pct*100).toFixed(1)}%`:''}`;
+    return `<button class="prof-chip" onclick="protEditProfile('${esc(n).replace(/'/g,"\\'")}')" title="Click to view/edit in Advanced"><b>${esc(n)}</b><small>${sum}</small></button>`;}).join('');
+  const stratOpts=['<option value="*">All strategies (default)</option>'].concat(
+    Object.keys(window.stratListForProt||{}).map(s=>`<option value="${esc(s)}">${esc(s)}</option>`)).join('');
+  const profOpts=Object.keys(profiles).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  const assignsTxt=Object.entries(assigns).map(([s,p])=>`${s==='*'?'All strategies':s} → ${p}`).join(' · ')||'none yet';
+
+  el.innerHTML=`
+    <div class="pc-row toggle-row" style="margin-bottom:14px">
+      <div class="toggle-switch ${P.enabled?'on':''}" onclick="setProtectionEnabled(${!P.enabled})"><div class="track"></div><div class="thumb"></div></div>
+      <div class="toggle-copy"><b>Protection engine ${P.enabled?'ON':'OFF'}</b><small>FOX autonomously manages every open position by its Protection Profile — breakeven, trailing stop, take profit and safety repair. You supervise. Percentages are price moves from entry, not leveraged ROE.</small></div>
+    </div>
+    ${posCards||'<div class="empty-state" style="padding:18px"><div class="es-icon">🛡️</div><b>No open positions</b><span>Protection applies automatically the moment a trade opens, using the profile assigned below.</span></div>'}
+    <div class="section-label">Protection profiles</div>
+    <div class="prof-chips">${profChips}</div>
+    <div class="pc-row" style="margin-top:12px">
+      <select id="prot-strategy" class="input" style="flex:1 1 220px">${stratOpts}</select>
+      <select id="prot-profile" class="input" style="flex:0 1 190px">${profOpts}</select>
+      <button class="small-button" onclick="assignProtProfile()">Assign profile</button>
+    </div>
+    <div class="sub" style="margin-top:8px">Assignments: ${esc(assignsTxt)} · open trades keep the profile they started with.</div>
+    <details id="prot-advanced" class="ppe-adv"><summary>Advanced · edit or create a profile</summary>
+      <div class="trail-form" style="grid-template-columns:1.6fr repeat(6,minmax(76px,1fr))">
+        <div><label class="trail-label">Profile name</label><input id="prot-name" class="input" value="Custom"></div>
+        <div><label class="trail-label">Breakeven %</label><input id="prot-be" class="input" type="number" min="0.01" step="0.01" value="1"></div>
+        <div><label class="trail-label">BE offset %</label><input id="prot-off" class="input" type="number" min="0.01" step="0.01" value="0.2"></div>
+        <div><label class="trail-label">Trail arms %</label><input id="prot-tr" class="input" type="number" min="0.01" step="0.01" value="2"></div>
+        <div><label class="trail-label">Trail dist %</label><input id="prot-td" class="input" type="number" min="0.01" step="0.01" value="2"></div>
+        <div><label class="trail-label">TP % · 0 off</label><input id="prot-tp" class="input" type="number" min="0" step="0.01" value="0"></div>
+        <div><label class="trail-label">TP trail % · 0 off</label><input id="prot-tpt" class="input" type="number" min="0" step="0.01" value="0"></div>
+      </div>
+      <div class="trail-actions"><button class="small-button" onclick="saveProtProfile()">Save profile</button></div>
+    </details>`;
+}
+function fmtHLpxSafe(v){return v==null||isNaN(+v)?'—':(+v).toLocaleString('en-US',{maximumFractionDigits:+v>=1000?0:4});}
 function flow(gate,status){
   const cls=GATEDESC[status]?GATEDESC[status][2]:"on";let h="";
   for(let i=1;i<=5;i++){h+=`<div class="seg ${i<=gate?cls:''}"></div>`;}
@@ -906,14 +1009,16 @@ async function loadRegimeChart(){
 async function load(){
   const err=document.getElementById("err");err.innerHTML="";
   try{
-    const [reg,st,audit,history,snapshots,experiments,fillsResp]=await Promise.all([
+    const [reg,st,audit,history,snapshots,experiments,fillsResp,prot]=await Promise.all([
       fetch(BOT+"/registry").then(r=>r.json()),
       fetch(BOT+"/status").then(r=>r.json()),
       fetch(BOT+"/audit").then(r=>r.json()),
       fetch(BOT+"/history?limit=8").then(r=>r.json()),
       fetch(BOT+"/market-snapshots?limit=5").then(r=>r.json()),
       fetch(BOT+"/experiments").then(r=>r.json()),
-      fetch(BOT+"/trade-history?limit=50").then(r=>r.json()).catch(()=>({fills:[]}))]);
+      fetch(BOT+"/trade-history?limit=50").then(r=>r.json()).catch(()=>({fills:[]})),
+      fetch(BOT+"/protection").then(r=>r.json()).catch(()=>({enabled:false,profiles:{},assignments:{},positions:{},recent:[]}))]);
+    window.protData=prot&&prot.positions?prot:{enabled:false,profiles:{},assignments:{},positions:{},recent:[]};
     renderTradeHistory((fillsResp&&fillsResp.fills)||[]);
 
     const mode=document.getElementById("mode");
@@ -1030,13 +1135,16 @@ async function load(){
         const fundCell=`<span class="${fundCls}">${fund<0?'-':''}$${Math.abs(fund).toFixed(2)}</span>`;
         const strat=bookByCoin[p.coin]||'';
         const bp=strat?(st.positions||{})[strat]:null;
-        const tcfg=strat&&st.trailing&&st.trailing.configured_strategies?st.trailing.configured_strategies[strat]:null;
-        const armed=!!(tcfg&&st.trailing&&st.trailing.enabled);
+        const prow=(window.protData&&window.protData.positions)?window.protData.positions[strat]:null;
+        const armed=!!(prow&&prow.params&&window.protData.enabled);
+        const stageKey=prow?(prow.tp_armed?'tp_trail':(prow.stage||'initial')):'';
+        const stageLbl={initial:'Protected',breakeven:'Breakeven',trailing:'Trailing',tp_trail:'TP Trail'}[stageKey]||'Protected';
+        const pparams=prow&&prow.params||null;
         const stopStr=bp&&bp.stop_px?fmtHLpx(bp.stop_px):'--';
-        const tpStr=(bp&&tcfg&&tcfg.tp_pct)?fmtHLpx(bp.entry_px*(p.side==='long'?1+tcfg.tp_pct:1-tcfg.tp_pct)):'--';
+        const tpStr=(bp&&pparams&&pparams.tp_pct)?fmtHLpx(bp.entry_px*(p.side==='long'?1+pparams.tp_pct:1-pparams.tp_pct)):'--';
         const tpsl=`${tpStr} / ${stopStr}`;
         const acts=strat
-          ? `<div class="pos-actions"><button class="pos-btn trail${armed?' on':''}" onclick="trailPosition('${esc(strat).replace(/'/g,"\\'")}')" title="${armed?'Trailing is ACTIVE on this position — click to adjust':'Set a trailing stop for this position'}">Trail${armed?' ✓':''}</button><button class="pos-btn close" onclick="closePosition('${esc(strat).replace(/'/g,"\\'")}','${esc(p.coin)}','${p.size}')" title="Market-close this position">Close</button></div>`
+          ? `<div class="pos-actions"><button class="pos-btn trail${armed?' on':''}" onclick="trailPosition('${esc(strat).replace(/'/g,"\\'")}')" title="${armed?'FOX is managing this position — click to supervise':'Open Position Protection for this trade'}">${armed?'🟢 '+stageLbl:'Protect'}</button><button class="pos-btn close" onclick="closePosition('${esc(strat).replace(/'/g,"\\'")}','${esc(p.coin)}','${p.size}')" title="Market-close this position">Close</button></div>`
           : `<span class="liqdist" title="Not tracked by a bot strategy">untracked</span>`;
         return `<tr class="live-pos"><td>${mkt}</td><td><span class="${sideCls}">${p.size} ${esc(p.coin)}</span></td><td>${(+p.position_value).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} USDC</td><td>${fmtHLpx(p.entry_px)}</td><td>${markPx?fmtHLpx(markPx):'—'}</td><td>${pnlCell}</td><td>${liqCell}</td><td>${marginCell}</td><td>${fundCell}</td><td>${tpsl}</td><td>${acts}</td></tr>`;
       }).join('');
@@ -1061,46 +1169,9 @@ async function load(){
     // ---- STRATEGY PERF (positions page table) ----
     document.getElementById("strat-perf-wrap").innerHTML=stratNames.length?`<table class="strat-perf"><thead><tr><th>Strategy</th><th class="num">Trades</th><th class="num">Win rate</th><th class="num">Net P&amp;L</th></tr></thead><tbody>${stratNames.map(name=>{const s=byStrat[name];return `<tr><td>${esc(name)}</td><td class="num">${s.trades}</td><td class="num">${s.win_rate_pct}%</td><td class="num ${s.net_pnl>=0?'pos':'neg'}">${fmt(s.net_pnl)}</td></tr>`;}).join('')}</tbody></table>`:'<div class="muted">No closed trades yet.</div>';
 
-    // ---- TRAILING control ----
-    const trailing=st.trailing||{},trailConfigs=trailing.configured_strategies||{},trailNames=Object.keys(trailConfigs),defaultStrategy=trailNames[0]||(v.strategies||[])[0]?.strategy||'';
-    const currentTrail=trailConfigs[defaultStrategy]||{be_trigger_pct:.05,be_offset_pct:.002,trail_trigger_pct:.08,trail_distance_pct:.05};
-    const strategyOptions=(v.strategies||[]).filter(s=>s.status!=="sensor").map(s=>`<option value="${esc(s.strategy)}" ${s.strategy===defaultStrategy?'selected':''}>${esc(s.strategy)}</option>`).join('');
-    // live status: for each armed strategy, is it protecting an open position right now?
-    const statusLines=trailNames.map(n=>{
-      const bp=(st.positions||{})[n],cfg=trailConfigs[n]||{};
-      const tpTxt=cfg.tp_pct?` · TP +${+(cfg.tp_pct*100).toFixed(2)}%`:'';
-      if(!bp)return `<span class="trail-badge idle">✓ ${esc(n)} — armed, waiting for a position${tpTxt}</span>`;
-      return `<span class="trail-badge">● PROTECTING ${esc(bp.coin)} ${esc(bp.side)} — stop now ${Number(bp.stop_px).toLocaleString()}${tpTxt} · ${esc(n)}</span>`;
-    }).join('');
-    const activeBadges=trailNames.length?`<div class="trail-badges">${statusLines}</div>`
-      :(trailing.enabled?'<div class="trail-badges"><span class="trail-badge idle">Engine on — no strategy configured yet. Pick one below and Save.</span></div>':'');
-    // recent engine actions — proof the trail is really moving stops
-    const tlog=(trailing.recent_actions||[]).slice(-3).reverse();
-    const logHtml=tlog.length?`<div class="section-label">Recent trailing actions</div>${tlog.map(a=>`<div class="check"><b class="ok">✓</b><div><b>${esc(a.action||'')}${a.strategy?` · ${esc(a.strategy)}`:''}</b><small>${a.old_stop!=null?`stop ${Number(a.old_stop).toLocaleString()} → ${Number(a.new_stop).toLocaleString()} · `:''}${a.px!=null?`px ${Number(a.px).toLocaleString()} · `:''}${relTime(a.t)}</small></div></div>`).join('')}`:'';
-    document.getElementById("trailing-control").innerHTML=`
-      <div class="pc-row toggle-row" style="margin-bottom:16px">
-        <div class="toggle-switch ${trailing.enabled?'on':''}" onclick="setTrailing(${!trailing.enabled})" title="${trailing.enabled?'Turn trailing off':'Turn trailing on'}"><div class="track"></div><div class="thumb"></div></div>
-        <div class="toggle-copy"><b>Trailing engine ${trailing.enabled?'ON':'OFF'}</b><small>Protects open positions per strategy: breakeven, then a stop that ratchets behind the peak, plus an optional take-profit. Applies immediately to a strategy's current open trade. Percentages are moves of the ENTRY PRICE (at 20× leverage, +1% price ≈ +20% ROE).</small></div>
-      </div>
-      ${activeBadges}
-      <div class="preset-row"><span class="pr-label">Preset</span>
-        <button class="preset-btn" onclick="setTrailPreset('conservative')">Conservative</button>
-        <button class="preset-btn" onclick="setTrailPreset('balanced')">Balanced</button>
-        <button class="preset-btn" onclick="setTrailPreset('aggressive')">Aggressive</button>
-      </div>
-      <div class="trail-diagram" id="trail-diagram"></div>
-      <div class="trail-caption" id="trail-caption"></div>
-      <div class="trail-form">
-        <div><label class="trail-label">Strategy</label><select id="trail-strategy" class="input">${strategyOptions}</select></div>
-        <div><label class="trail-label">Breakeven at %</label><input id="trail-be-trigger" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.be_trigger_pct*100).toFixed(2)}" oninput="updateTrailDiagram()"></div>
-        <div><label class="trail-label">BE offset %</label><input id="trail-be-offset" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.be_offset_pct*100).toFixed(2)}"></div>
-        <div><label class="trail-label">Trail starts at %</label><input id="trail-trigger" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.trail_trigger_pct*100).toFixed(2)}" oninput="updateTrailDiagram()"></div>
-        <div><label class="trail-label">Trail distance %</label><input id="trail-distance" class="input" type="number" min="0.01" step="0.01" value="${+(currentTrail.trail_distance_pct*100).toFixed(2)}" oninput="updateTrailDiagram()"></div>
-        <div><label class="trail-label">Take profit % · 0 = off</label><input id="trail-tp" class="input" type="number" min="0" step="0.01" value="${currentTrail.tp_pct?+(currentTrail.tp_pct*100).toFixed(2):0}" oninput="updateTrailDiagram()"></div>
-      </div>
-      <div class="trail-actions"><button class="small-button" onclick="setTrailing(true)">Save &amp; activate</button></div>
-      ${logHtml}`;
-    updateTrailDiagram();
+    // ---- POSITION PROTECTION ----
+    window.stratListForProt={};(v.strategies||[]).filter(s=>s.status!=="sensor").forEach(s=>{window.stratListForProt[s.strategy]=1;});
+    renderProtection(window.protData,pf,st);
 
     // ---- PIPELINE STATUS (pipeline page) ----
     const stat=(n,label)=>`<div class="vstat"><b>${n??0}</b><span>${label}</span></div>`;
