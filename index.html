@@ -387,6 +387,30 @@
   .trail-caption{font-size:12px;color:var(--dim);margin-bottom:14px}
   .trail-caption b{color:var(--txt);font-family:var(--mono)}
 
+  /* ---- Smart Trade + per-strategy sizing ---- */
+  .st-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-top:6px}
+  .st-grid .full{grid-column:1 / -1}
+  .st-field label{font-size:10px;color:var(--dim);display:block;margin:0 0 5px 2px;text-transform:uppercase;letter-spacing:.4px}
+  .st-field .input,.st-field select.input{width:100%}
+  .st-inline{display:flex;gap:8px}.st-inline .input{flex:1}
+  .st-preview{margin-top:14px;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:13px 15px;font-size:12.5px}
+  .st-preview .pv-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--dim)}
+  .st-preview .pv-row b{color:var(--txt);font-family:var(--mono)}
+  .st-preview .pv-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .st-preview .pv-head b{font-size:15px;color:var(--txt)}
+  .st-warn{color:var(--amber);font-size:11.5px;margin-top:8px}
+  .st-tpl{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;align-items:center}
+  .tpl-chip{display:inline-flex;align-items:center;gap:6px;background:var(--tile);border:1px solid var(--line);border-radius:20px;padding:5px 6px 5px 12px;font-size:11.5px;font-weight:600;color:var(--txt);cursor:pointer}
+  .tpl-chip:hover{border-color:var(--line2)}
+  .tpl-chip .x{color:var(--dim);border:none;background:transparent;padding:0 3px;font-size:13px;cursor:pointer;border-radius:50%}
+  .tpl-chip .x:hover{color:var(--red)}
+  .sz-row{display:grid;grid-template-columns:1.5fr .8fr .8fr auto auto;gap:9px;align-items:end;padding:11px 0;border-bottom:1px solid var(--line)}
+  .sz-row:last-child{border:0}
+  .sz-row .who b{font-size:12.5px}.sz-row .who small{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+  .sz-row .input{width:100%;padding:8px}
+  .sz-eff{font-size:11px;color:var(--dim);margin-top:2px}.sz-eff b{color:var(--accent);font-family:var(--mono)}
+  .sz-eff.ovr b{color:var(--amber)}
+  @media(max-width:720px){.st-grid{grid-template-columns:1fr}.sz-row{grid-template-columns:1fr 1fr;gap:8px}.sz-row .who{grid-column:1 / -1}}
   /* mobile: sidebar → horizontal tab strip */
   @media(max-width:880px){
     .shell{flex-direction:column}
@@ -470,6 +494,7 @@
               <button class="hl-tab active" data-tab="positions" onclick="setPosTab('positions')">Positions <span id="pos-count-chip" class="count-chip">0</span></button>
               <button class="hl-tab" data-tab="balances" onclick="setPosTab('balances')">Balances</button>
               <button class="hl-tab" data-tab="history" onclick="setPosTab('history')">Trade history</button>
+              <button class="pos-btn trail" style="margin-left:auto;align-self:center" onclick="openSmartTrade()" title="Open a manual Smart Trade">＋ Smart trade</button>
             </div>
             <div id="pos-view">
               <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Size</th><th>Position Value</th><th>Entry Price</th><th>Mark Price</th><th>PNL (ROE %)</th><th>Liq. Price</th><th>Margin</th><th>Funding</th><th>TP / SL</th><th>Manage</th></tr></thead><tbody id="live-pos"></tbody></table></div>
@@ -490,6 +515,46 @@
         </section>
 
         <section class="page" data-page="positions">
+          <div class="card" id="smart-trade-card">
+            <h2>Smart Trade · open a position</h2>
+            <div class="sub" style="margin-bottom:12px">Market entry with a protective stop, sized by the margin you put down × leverage. Cross margin. Real order on Hyperliquid.</div>
+            <div class="st-grid">
+              <div class="st-field"><label>Market</label>
+                <select class="input" id="st-coin" onchange="stMarkRefresh()">
+                  <option value="BTC">BTC</option><option value="ETH">ETH</option>
+                  <option value="SOL">SOL</option><option value="SUI">SUI</option><option value="HYPE">HYPE</option>
+                </select></div>
+              <div class="st-field"><label>Direction</label>
+                <div class="segmented" id="st-side" style="width:100%">
+                  <button type="button" class="seg-long active" data-side="long" onclick="stSetSide('long')" style="flex:1">Long</button>
+                  <button type="button" class="seg-short" data-side="short" onclick="stSetSide('short')" style="flex:1">Short</button>
+                </div></div>
+              <div class="st-field"><label>Margin (USD) · what you put down</label>
+                <input class="input" id="st-margin" type="number" min="1" step="1" value="100" oninput="stPreview()"></div>
+              <div class="st-field"><label>Leverage · <span id="st-lev-val">20</span>×</label>
+                <input class="input" id="st-lev" type="number" min="1" max="40" step="1" value="20" oninput="stPreview()"></div>
+              <div class="st-field"><label>Stop-loss</label>
+                <div class="st-inline">
+                  <input class="input" id="st-stop" type="number" min="0" step="0.1" value="2" oninput="stPreview()">
+                  <select class="input" id="st-stop-mode" style="flex:0 0 90px" onchange="stPreview()">
+                    <option value="pct">%</option><option value="price">price</option></select>
+                </div></div>
+              <div class="st-field"><label>Take-profit <span class="muted" style="text-transform:none">· managed by FOX</span></label>
+                <div class="st-inline">
+                  <select class="input" id="st-tp-mode" style="flex:0 0 130px" onchange="stPreview()">
+                    <option value="off">Off</option><option value="target">Take-profit %</option></select>
+                  <input class="input" id="st-tp" type="number" min="0" step="0.1" value="5" oninput="stPreview()" disabled>
+                </div></div>
+              <div class="st-field full"><label>Protection profile · how FOX manages the stop after entry</label>
+                <select class="input" id="st-profile"><option value="">None — fixed stop only</option></select></div>
+            </div>
+            <div class="st-preview" id="st-preview"><div class="muted">Enter margin and leverage to preview.</div></div>
+            <div class="st-tpl" id="st-templates"></div>
+            <div class="form-row" style="margin-top:14px">
+              <button class="small-button" style="flex:1" onclick="submitSmartTrade()">Open trade</button>
+              <button onclick="stSaveTemplate()" title="Save this ticket for one-click reuse">＋ Save as template</button>
+            </div>
+          </div>
           <div class="card"><h2>Strategy P&amp;L · realized by strategy</h2>
             <div class="pnl-legend"><span><i style="background:var(--green)"></i>Profit</span><span><i style="background:var(--red)"></i>Loss</span><span style="color:var(--dim2)">bars diverge from the zero line</span></div>
             <div id="strat-pnl"><div class="muted">Loading…</div></div>
@@ -525,6 +590,9 @@
 
         <section class="page" data-page="risk">
           <div class="card"><h2>Global safeguards</h2><div id="safeguards"><div class="muted">Loading…</div></div></div>
+          <div class="card"><h2>Position sizing · what each alert fires</h2>
+            <div class="sub" style="margin-bottom:8px">Set the margin &amp; leverage a strategy uses when its webhook fires — overrides the code default, no redeploy. Cross margin.</div>
+            <div id="sizing-editor"><div class="muted">Loading…</div></div></div>
           <div class="card"><h2>Strategy eligibility · signal-by-signal rules</h2><div id="eligibility"><div class="muted">Loading current checks…</div></div></div>
         </section>
 
@@ -1042,6 +1110,133 @@ async function loadRegimeChart(){
   }
 }
 
+// ---- Smart Trade (manual position ticket) ----
+let stSide='long', stMark=0, stMarkCoin='';
+const ST_MAXLEV={BTC:40,ETH:25,SOL:20,SUI:10,HYPE:10};
+function openSmartTrade(){showPage('positions');const c=document.getElementById('smart-trade-card');if(c){c.scrollIntoView({behavior:'smooth',block:'start'});c.style.transition='box-shadow .3s';c.style.boxShadow='0 0 0 2px var(--accent)';setTimeout(()=>c.style.boxShadow='',1600);}}
+function stSetSide(s){stSide=s;document.querySelectorAll('#st-side button').forEach(b=>b.classList.toggle('active',b.dataset.side===s));stPreview();}
+async function stMarkRefresh(){
+  const coin=document.getElementById('st-coin').value;stMarkCoin=coin;
+  const lv=document.getElementById('st-lev');if(lv){const mx=ST_MAXLEV[coin]||20;lv.max=mx;if(+lv.value>mx)lv.value=mx;}
+  try{const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`).then(r=>r.json());stMark=parseFloat(r.price)||0;}
+  catch(e){stMark=0;}
+  stPreview();
+}
+function stFillProfiles(){
+  const sel=document.getElementById('st-profile');if(!sel)return;const cur=sel.value;
+  const profs=Object.keys((window.protData&&window.protData.profiles)||{});
+  sel.innerHTML='<option value="">None — fixed stop only</option>'+profs.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(profs.includes(cur))sel.value=cur;
+}
+function stPreview(){
+  const el=document.getElementById('st-preview');if(!el)return;
+  const margin=parseFloat(document.getElementById('st-margin').value)||0;
+  const lev=parseInt(document.getElementById('st-lev').value)||0;
+  document.getElementById('st-lev-val').textContent=lev||'—';
+  const tpMode=document.getElementById('st-tp-mode').value;
+  document.getElementById('st-tp').disabled=tpMode==='off';
+  const notional=margin*lev, mark=stMark, side=stSide;
+  const fx=n=>window.fmtHLpx?fmtHLpx(n):Number(n).toLocaleString(undefined,{maximumFractionDigits:n<10?4:2});
+  const stopMode=document.getElementById('st-stop-mode').value, stopIn=parseFloat(document.getElementById('st-stop').value)||0;
+  let stopPx=0, stopPct=0;
+  if(stopMode==='price'&&mark>0){stopPx=stopIn;stopPct=Math.abs(mark-stopPx)/mark;}
+  else if(stopMode==='pct'){stopPct=stopIn/100;if(mark>0)stopPx=side==='long'?mark*(1-stopPct):mark*(1+stopPct);}
+  const riskUsd=notional*stopPct, roeStop=stopPct*lev*100;
+  let liqPx=0;if(mark>0&&lev>0)liqPx=side==='long'?mark*(1-1/lev):mark*(1+1/lev);
+  const tpVal=parseFloat(document.getElementById('st-tp').value)||0;
+  let tpPx=0;if(tpMode==='target'&&tpVal>0&&mark>0)tpPx=side==='long'?mark*(1+tpVal/100):mark*(1-tpVal/100);
+  el.innerHTML=`
+    <div class="pv-head"><span>You open</span><b>${side.toUpperCase()} $${notional.toLocaleString(undefined,{maximumFractionDigits:0})} ${stMarkCoin}</b></div>
+    <div class="pv-row"><span>Margin · leverage</span><b>$${margin.toLocaleString()} · ${lev}×</b></div>
+    ${mark>0?`<div class="pv-row"><span>Est. entry</span><b>${fx(mark)}</b></div>`:''}
+    ${stopPct>0?`<div class="pv-row"><span>Stop${mark>0?' @ '+fx(stopPx):''}</span><b>−${(stopPct*100).toFixed(2)}%${mark>0?` · −$${riskUsd.toFixed(2)} · −${roeStop.toFixed(0)}% ROE`:''}</b></div>`:''}
+    ${tpPx>0?`<div class="pv-row"><span>Take-profit @ ${fx(tpPx)}</span><b>+${tpVal}% · managed</b></div>`:''}
+    ${liqPx>0?`<div class="pv-row"><span>Est. liquidation <span class="muted" style="text-transform:none">(approx)</span></span><b>${fx(liqPx)}</b></div>`:''}
+    ${notional>0&&mark<=0?`<div class="st-warn">Live ${stMarkCoin} price unavailable for preview — the order still uses Hyperliquid's price at execution.</div>`:''}`;
+}
+async function submitSmartTrade(){
+  const coin=document.getElementById('st-coin').value;
+  const margin=parseFloat(document.getElementById('st-margin').value)||0;
+  const lev=parseInt(document.getElementById('st-lev').value)||0;
+  const profile=document.getElementById('st-profile').value;
+  const stopMode=document.getElementById('st-stop-mode').value, stopIn=parseFloat(document.getElementById('st-stop').value)||0;
+  const tpMode=document.getElementById('st-tp-mode').value, tpVal=parseFloat(document.getElementById('st-tp').value)||0;
+  if(!(margin>0)||!(lev>0))return alert('Enter a positive margin and leverage.');
+  if(!(stopIn>0))return alert('Set a stop-loss.');
+  const body={coin,side:stSide,margin_usd:margin,leverage:lev};
+  if(profile)body.profile=profile;
+  if(stopMode==='price')body.stop_px=stopIn;else body.stop_pct=stopIn/100;
+  if(tpMode==='target'&&tpVal>0)body.tp_pct=tpVal/100;
+  const notional=margin*lev;
+  const msg=`Open ${stSide.toUpperCase()} ${coin}?\n\nNotional $${notional.toLocaleString()} = $${margin} margin × ${lev}× (cross)\nStop: ${stopMode==='price'?stopIn:stopIn+'%'}`+(profile?`\nProtection: ${profile}`:'')+`\n\nThis is a REAL market order on Hyperliquid and cannot be undone.`;
+  if(!confirm(msg))return;
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{
+    const r=await fetch(BOT+"/control/open-position",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||(d.result&&d.result.error)||"rejected");
+    alert(`Opened ${coin} ${stSide} · $${d.notional_usd} notional${d.protection_enabled?' · protection active':''}.`);
+    load();
+  }catch(e){onControlError(e);}
+}
+// templates (client-side only)
+const ST_TPL_KEY='foxSmartTemplates';
+function stTemplates(){try{return JSON.parse(localStorage.getItem(ST_TPL_KEY)||'[]');}catch(e){return [];}}
+function stRenderTemplates(){
+  const el=document.getElementById('st-templates');if(!el)return;const t=stTemplates();
+  el.innerHTML=t.length?('<span class="muted" style="font-size:11px">Templates:</span>'+t.map((x,i)=>`<span class="tpl-chip" onclick="stApplyTemplate(${i})">${esc(x.name)}<button class="x" onclick="event.stopPropagation();stDeleteTemplate(${i})">✕</button></span>`).join('')):'';
+}
+function stSaveTemplate(){
+  const coin=document.getElementById('st-coin').value;
+  const name=(prompt('Template name:',`${coin} ${stSide} $${document.getElementById('st-margin').value}@${document.getElementById('st-lev').value}x`)||'').trim();
+  if(!name)return;const t=stTemplates();
+  t.push({name,coin,side:stSide,margin:document.getElementById('st-margin').value,lev:document.getElementById('st-lev').value,
+    stop:document.getElementById('st-stop').value,stopMode:document.getElementById('st-stop-mode').value,
+    profile:document.getElementById('st-profile').value,tpMode:document.getElementById('st-tp-mode').value,tp:document.getElementById('st-tp').value});
+  localStorage.setItem(ST_TPL_KEY,JSON.stringify(t.slice(-12)));stRenderTemplates();
+}
+function stApplyTemplate(i){
+  const x=stTemplates()[i];if(!x)return;
+  document.getElementById('st-coin').value=x.coin;stSetSide(x.side||'long');
+  document.getElementById('st-margin').value=x.margin;document.getElementById('st-lev').value=x.lev;
+  document.getElementById('st-stop').value=x.stop;document.getElementById('st-stop-mode').value=x.stopMode||'pct';
+  if(x.profile!==undefined)document.getElementById('st-profile').value=x.profile;
+  document.getElementById('st-tp-mode').value=x.tpMode||'off';document.getElementById('st-tp').value=x.tp||'';
+  stMarkRefresh();
+}
+function stDeleteTemplate(i){const t=stTemplates();t.splice(i,1);localStorage.setItem(ST_TPL_KEY,JSON.stringify(t));stRenderTemplates();}
+// ---- Per-strategy sizing editor ----
+function renderSizingEditor(strategies){
+  const el=document.getElementById('sizing-editor');if(!el)return;
+  const rows=(strategies||[]).filter(s=>s.tradeable).map((s,i)=>{
+    const sz=s.sizing||{},isOvr=sz.source==='override';
+    const sname=esc(s.strategy).replace(/'/g,"\\'");
+    return `<div class="sz-row">
+      <div class="who"><b>${esc(s.strategy)}</b><small>${esc(s.coin)} · ${isOvr?'dashboard override':'code default'}</small>
+        <div class="sz-eff ${isOvr?'ovr':''}">Fires: <b>$${(sz.notional_usd||0).toLocaleString()}</b> notional · ${((sz.stop_pct||0)*100).toFixed(0)}% stop</div></div>
+      <div><label class="trail-label">Margin $</label><input class="input" type="number" min="1" step="1" value="${sz.margin_usd!=null?sz.margin_usd:''}" placeholder="—" id="sz-m-${i}"></div>
+      <div><label class="trail-label">Leverage</label><input class="input" type="number" min="1" step="1" value="${sz.leverage!=null?sz.leverage:''}" placeholder="—" id="sz-l-${i}"></div>
+      <button class="pos-btn trail" onclick="setStrategySizing('${sname}',${i})">Save</button>
+      <button class="pos-btn" onclick="clearStrategySizing('${sname}')" ${isOvr?'':'disabled'} title="Revert to code default">Reset</button>
+    </div>`;}).join('');
+  el.innerHTML=rows||'<div class="muted">No tradeable strategies.</div>';
+}
+async function setStrategySizing(strategy,i){
+  const m=parseFloat(document.getElementById('sz-m-'+i).value),l=parseInt(document.getElementById('sz-l-'+i).value);
+  if(!(m>0)||!(l>0))return alert('Enter a positive margin and leverage.');
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{const r=await fetch(BOT+"/control/strategy-sizing",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({strategy,margin_usd:m,leverage:l})});
+    const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");load();}
+  catch(e){onControlError(e);}
+}
+async function clearStrategySizing(strategy){
+  if(!confirm('Reset "'+strategy+'" to its code-default size?'))return;
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{const r=await fetch(BOT+"/control/strategy-sizing",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({strategy,clear:true})});
+    const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");load();}
+  catch(e){onControlError(e);}
+}
+
 async function load(){
   const err=document.getElementById("err");err.innerHTML="";
   try{
@@ -1056,6 +1251,7 @@ async function load(){
       fetch(BOT+"/protection").then(r=>r.json()).catch(()=>({enabled:false,profiles:{},assignments:{},positions:{},recent:[]}))]);
     window.protData=prot&&prot.positions?prot:{enabled:false,profiles:{},assignments:{},positions:{},recent:[]};
     window.regimeManualLog=st.regime_manual_log||[];
+    stFillProfiles();
     renderTradeHistory((fillsResp&&fillsResp.fills)||[]);
 
     const mode=document.getElementById("mode");
@@ -1247,6 +1443,7 @@ async function load(){
 
     // ---- ELIGIBILITY (risk page) ----
     document.getElementById("eligibility").innerHTML=(v.strategies||[]).map(s=>`<div class="strategy-rule"><b>${esc(s.strategy)}</b><span class="tag">${esc(s.status)}</span><p>${esc(s.summary)}</p>${(s.checks||[]).map(c=>`<div class="check"><b class="${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</b><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></div>`).join('')}</div>`).join("")||'<div class="muted">No strategies configured.</div>';
+    renderSizingEditor(v.strategies);
 
     // ---- RISK BANNER (top, only when flags exist) + SAFEGUARDS (eligibility page) ----
     const flags=st.risk_flags||[];
@@ -1302,5 +1499,6 @@ async function load(){
   }catch(e){err.innerHTML='<div class="err">Bot unreachable (may be redeploying). Retrying…<br><code>'+esc(String(e))+'</code></div>';document.getElementById("synced").textContent="reconnecting…";}
 }
 initGoogle();
+stRenderTemplates();stMarkRefresh();
 load();setInterval(load,30000);
 </script></body></html>
