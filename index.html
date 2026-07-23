@@ -457,6 +457,8 @@
               <div class="rg-legends">
                 <span class="rg-legend"><i class="up"></i>1H/4H regime → long</span>
                 <span class="rg-legend"><i class="down"></i>1H/4H regime → short</span>
+                <span class="rg-legend" style="color:var(--amber)">◆ manual override</span>
+                <label class="rg-legend" style="cursor:pointer"><input type="checkbox" id="rg-manual" checked onchange="loadRegimeChart()" style="accent-color:var(--amber);margin-right:2px">show manual</label>
               </div>
             </div>
             <div id="regime-chart" class="regime-chart"></div>
@@ -980,11 +982,24 @@ async function fetchRegimeMarkers(){
       events.push({time:Math.floor(d.getTime()/1000),tf:m[2]||'1h',side:m[3]});
     }
     events.sort((a,b)=>a.time-b.time);
-    return events.map(e=>({time:e.time,
+    const markers=events.map(e=>({time:e.time,
       position:e.side==='long'?'belowBar':'aboveBar',
       color:e.side==='long'?'#2fd07a':'#ff5f6e',
       shape:e.side==='long'?'arrowUp':'arrowDown',
       text:e.tf.toUpperCase()+(e.side==='long'?' ▲':' ▼')}));
+    // manual regime overrides (amber), toggleable via the "show manual" checkbox
+    const showManual=(document.getElementById('rg-manual')||{checked:true}).checked;
+    if(showManual)(window.regimeManualLog||[]).forEach(m=>{
+      const d=parseBotTime(m.t);if(!d)return;
+      const dir=m.direction;
+      markers.push({time:Math.floor(d.getTime()/1000),
+        position:dir==='short'?'aboveBar':'belowBar',
+        color:'#f5b942',
+        shape:dir==='long'?'arrowUp':dir==='short'?'arrowDown':'circle',
+        text:dir==='auto'?'SENSOR':'MANUAL '+(dir==='long'?'▲':'▼')});
+    });
+    markers.sort((a,b)=>a.time-b.time);
+    return markers;
   }catch(e){return [];}
 }
 async function loadRegimeChart(){
@@ -1040,6 +1055,7 @@ async function load(){
       fetch(BOT+"/trade-history?limit=50").then(r=>r.json()).catch(()=>({fills:[]})),
       fetch(BOT+"/protection").then(r=>r.json()).catch(()=>({enabled:false,profiles:{},assignments:{},positions:{},recent:[]}))]);
     window.protData=prot&&prot.positions?prot:{enabled:false,profiles:{},assignments:{},positions:{},recent:[]};
+    window.regimeManualLog=st.regime_manual_log||[];
     renderTradeHistory((fillsResp&&fillsResp.fills)||[]);
 
     const mode=document.getElementById("mode");
@@ -1127,7 +1143,7 @@ async function load(){
           </div>
           <div class="pc-row toggle-row">
             <div class="toggle-switch ${regimeFilterEnabled?'on':''}" onclick="setRegimeFilter(${!regimeFilterEnabled})" title="${regimeFilterEnabled?'Pause direction filter':'Activate direction filter'}"><div class="track"></div><div class="thumb"></div></div>
-            <div class="toggle-copy"><b>Direction filter</b><small>${regimeFilterEnabled?'On — only signals matching the active direction can trade.':'Off — either direction can trade once other checks pass.'}</small></div>
+            <div class="toggle-copy"><b>Direction filter</b><small>${regimeFilterEnabled?'On — applies to ALL strategies: only entries matching the active direction can open.':'Off — either direction can trade once other checks pass.'}</small></div>
           </div>
           <div class="chips">${chip('Sensor 1h',one)}${chip('Sensor 4h',four)}<span class="chip" title="Operator actions require the Railway DASHBOARD_TOKEN">🔒 token required</span></div>
         </div>
