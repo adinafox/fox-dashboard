@@ -96,7 +96,7 @@
   .delta.up{background:rgba(47,208,122,.15);color:var(--green)}
   .delta.down{background:rgba(255,95,110,.15);color:var(--red)}
   .delta.flat{background:rgba(138,151,171,.14);color:var(--dim)}
-  .substats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:20px}
+  .substats{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:9px;margin-top:20px}
   .substat{background:var(--tile);border:1px solid var(--line);border-radius:13px;padding:11px 12px}
   .substat small{display:block;color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
   .substat b{font-family:var(--mono);font-size:15.5px;font-variant-numeric:tabular-nums;font-weight:600}
@@ -410,12 +410,17 @@
           <div class="card"><h2><span class="live-dot"></span>Hyperliquid · live account</h2>
             <div class="hl-tabs">
               <button class="hl-tab active" data-tab="positions" onclick="setPosTab('positions')">Positions <span id="pos-count-chip" class="count-chip">0</span></button>
+              <button class="hl-tab" data-tab="balances" onclick="setPosTab('balances')">Balances</button>
               <button class="hl-tab" data-tab="history" onclick="setPosTab('history')">Trade history</button>
             </div>
             <div id="pos-view">
               <div id="pos-summary"></div>
               <div id="pos-table-wrap" style="overflow-x:auto"><table><thead><tr><th>Market</th><th>Side</th><th class="num">Size</th><th class="num">Value</th><th class="num">Entry</th><th class="num">Mark</th><th class="num">P&amp;L (ROE)</th><th class="num">Liq.</th><th class="num">Margin</th><th class="num">Funding</th><th class="num">Lev.</th><th>Manage</th></tr></thead><tbody id="live-pos"></tbody></table></div>
               <div id="live-pos-empty"></div>
+            </div>
+            <div id="balances-view" style="display:none">
+              <div style="overflow-x:auto"><table><thead><tr><th>Asset</th><th class="num">Total balance</th><th class="num">Available balance</th><th class="num">USDC value</th></tr></thead><tbody id="balances-body"></tbody></table></div>
+              <div id="balances-empty" style="display:none"><div class="empty-state"><div class="es-icon">💰</div><b>No balances</b><span>Deposits on your Hyperliquid account will appear here.</span></div></div>
             </div>
             <div id="history-view" style="display:none">
               <div style="overflow-x:auto"><table><thead><tr><th>Time</th><th>Market</th><th>Direction</th><th class="num">Price</th><th class="num">Size</th><th class="num">Trade value</th><th class="num">Fee</th><th class="num">Closed PNL</th></tr></thead><tbody id="trade-history"></tbody></table></div>
@@ -583,10 +588,22 @@ async function setTrailing(enabled){
 }
 
 function setPosTab(t){
-  const pv=document.getElementById('pos-view'),hv=document.getElementById('history-view');
-  if(pv)pv.style.display=t==='positions'?'':'none';
-  if(hv)hv.style.display=t==='history'?'':'none';
+  const views={positions:'pos-view',balances:'balances-view',history:'history-view'};
+  Object.entries(views).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.style.display=k===t?'':'none';});
   document.querySelectorAll('.hl-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+}
+function renderBalances(pf){
+  const body=document.getElementById("balances-body"),empty=document.getElementById("balances-empty");
+  if(!body)return;
+  const rows=[];
+  (pf.spot_balances||[]).forEach(b=>{
+    const isU=b.coin==='USDC';
+    rows.push(`<tr class="live-pos"><td><b>${esc(b.coin)}</b><div class="liqdist">spot</div></td><td class="num">${(+b.total).toLocaleString('en-US',{maximumFractionDigits:8})} ${esc(b.coin)}</td><td class="num">${(+b.available).toLocaleString('en-US',{maximumFractionDigits:8})} ${esc(b.coin)}</td><td class="num">${isU?usd(b.total):'—'}</td></tr>`);
+  });
+  if(pf.available)
+    rows.push(`<tr class="live-pos"><td><b>USDC</b><div class="liqdist">perps equity</div></td><td class="num">${usd(pf.account_value)}</td><td class="num">${usd(pf.withdrawable)}</td><td class="num">${usd(pf.account_value)}</td></tr>`);
+  body.innerHTML=rows.join('');
+  if(empty)empty.style.display=rows.length?'none':'block';
 }
 function renderTradeHistory(fills){
   const el=document.getElementById("trade-history"),empty=document.getElementById("history-empty");
@@ -890,12 +907,14 @@ async function load(){
     // ---- BALANCE HERO ----
     if(pf.available){
       const dCls=unrealized>0?'up':unrealized<0?'down':'flat';
+      const pv=pf.portfolio_value!=null?pf.portfolio_value:pf.account_value;
       document.getElementById("balance").innerHTML=`
-        <div class="bal-top"><div><span class="eyebrow">Account value · live equity</span>
-          <div class="balance-val">${usd(pf.account_value)}</div></div>
+        <div class="bal-top"><div><span class="eyebrow">Portfolio value · spot + perps</span>
+          <div class="balance-val">${usd(pv)}</div></div>
           ${unrealized!=null?`<span class="delta ${dCls}" title="Unrealized P&L on open positions">${unrealized>=0?'▲':'▼'} ${fmt(unrealized)}</span>`:''}</div>
         <div class="substats">
-          <div class="substat"><small>Available</small><b>${usd(pf.withdrawable)}</b></div>
+          <div class="substat"><small>Spot USDC</small><b>${pf.spot_usdc!=null?usd(pf.spot_usdc):'—'}</b></div>
+          <div class="substat"><small>Perps equity</small><b>${usd(pf.account_value)}</b></div>
           <div class="substat"><small>Margin used</small><b>${usd(pf.margin_used)}</b></div>
           <div class="substat"><small>Open notional</small><b>${usd(pf.notional)}</b></div>
         </div>`;
@@ -968,6 +987,7 @@ async function load(){
       </div>`;
 
     // ---- LIVE POSITIONS ----
+    renderBalances(pf);
     document.getElementById("pos-count-chip").textContent=live.length;
     const posWrap=document.getElementById("pos-table-wrap"),posSummary=document.getElementById("pos-summary"),posEmpty=document.getElementById("live-pos-empty");
     if(live.length){
