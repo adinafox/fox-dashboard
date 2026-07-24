@@ -411,6 +411,34 @@
   .sz-eff{font-size:11px;color:var(--dim);margin-top:2px}.sz-eff b{color:var(--accent);font-family:var(--mono)}
   .sz-eff.ovr b{color:var(--amber)}
   @media(max-width:720px){.st-grid{grid-template-columns:1fr}.sz-row{grid-template-columns:1fr 1fr;gap:8px}.sz-row .who{grid-column:1 / -1}}
+  /* ---- Strategies tab ---- */
+  .strat-card{background:var(--tile);border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:12px}
+  .strat-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .strat-head b{font-size:14px}
+  .strat-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:6px}
+  .b-funded{background:rgba(47,208,122,.14);color:var(--green)}
+  .b-regime{background:rgba(91,139,255,.14);color:var(--accent)}
+  .b-sensor{background:rgba(165,119,255,.14);color:var(--purple)}
+  .strat-pill{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;border:1px solid var(--line)}
+  .p-on{background:rgba(47,208,122,.12);color:var(--green);border-color:rgba(47,208,122,.35)}
+  .p-off{background:rgba(255,95,110,.12);color:var(--red);border-color:rgba(255,95,110,.35)}
+  .p-builtin{background:rgba(138,151,171,.12);color:var(--dim)}
+  .strat-meta{color:var(--dim);font-size:12px;margin:7px 0 10px}
+  .strat-meta b{color:var(--txt);font-family:var(--mono)}
+  .strat-controls{display:grid;grid-template-columns:repeat(3,1fr) 1.4fr auto;gap:8px;align-items:end}
+  .strat-controls .trail-label{margin-bottom:3px}
+  .strat-actions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+  .msg-panel{margin-top:11px;border-top:1px solid var(--line);padding-top:11px;display:none}
+  .msg-panel.open{display:block}
+  .msg-url{font-size:11.5px;color:var(--dim);margin-bottom:9px;word-break:break-all}
+  .msg-url b{color:var(--txt);font-family:var(--mono)}
+  .msg-block{margin-bottom:9px}
+  .msg-block .mtitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .msg-block .mtitle small{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+  .msg-block pre{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:11px;font-family:var(--mono);color:#cdd7e6;overflow-x:auto;margin:0;white-space:pre-wrap;word-break:break-all}
+  .copy-btn{font-size:11px;font-weight:700;padding:4px 10px;border-radius:7px;border:1px solid rgba(91,139,255,.4);background:var(--tile);color:var(--accent);cursor:pointer}
+  .copy-btn:hover{background:rgba(91,139,255,.12)}.copy-btn.done{color:var(--green);border-color:rgba(47,208,122,.4)}
+  @media(max-width:720px){.strat-controls{grid-template-columns:1fr 1fr}}
   /* mobile: sidebar → horizontal tab strip */
   @media(max-width:880px){
     .shell{flex-direction:column}
@@ -433,6 +461,7 @@
       <div class="nav-item active" data-page="overview" onclick="showPage('overview')"><span class="nav-icon">◆</span>Overview</div>
       <div class="nav-item" data-page="positions" onclick="showPage('positions')"><span class="nav-icon">◈</span>Positions &amp; P&amp;L</div>
       <div class="nav-group">Signals</div>
+      <div class="nav-item" data-page="strategies" onclick="showPage('strategies')"><span class="nav-icon">⧉</span>Strategies</div>
       <div class="nav-item" data-page="pipeline" onclick="showPage('pipeline')"><span class="nav-icon">⇄</span>Pipeline &amp; webhooks</div>
       <div class="nav-item" data-page="risk" onclick="showPage('risk')"><span class="nav-icon">⚑</span>Strategy eligibility</div>
       <div class="nav-group">System</div>
@@ -570,6 +599,49 @@
           </div>
         </section>
 
+        <section class="page" data-page="strategies">
+          <div class="card" id="create-strategy-card">
+            <h2 id="cs-title">Create a strategy</h2>
+            <div class="sub" style="margin-bottom:12px">Define a strategy the bot accepts from TradingView — no redeploy. Set its size, protection and coin, then copy the alert message below.</div>
+            <div class="st-grid">
+              <div class="st-field full"><label>Name · must match the <code>strategy</code> field in your alert JSON</label>
+                <input class="input" id="cs-name" type="text" placeholder="e.g. MY-BTC-Breakout" maxlength="120"></div>
+              <div class="st-field"><label>Market / ticker</label>
+                <select class="input" id="cs-coin">
+                  <option value="BTC">BTC</option><option value="ETH">ETH</option>
+                  <option value="SOL">SOL</option><option value="SUI">SUI</option><option value="HYPE">HYPE</option>
+                </select></div>
+              <div class="st-field"><label>Type</label>
+                <div class="segmented" id="cs-type" style="width:100%">
+                  <button type="button" class="active" data-type="funded" onclick="csSetType('funded')" style="flex:1">Funded</button>
+                  <button type="button" data-type="regime" onclick="csSetType('regime')" style="flex:1">Regime</button>
+                  <button type="button" data-type="sensor" onclick="csSetType('sensor')" style="flex:1">Sensor</button>
+                </div></div>
+              <div class="st-field cs-size"><label>Margin (USD)</label>
+                <input class="input" id="cs-margin" type="number" min="1" step="1" value="100" oninput="csPreview()"></div>
+              <div class="st-field cs-size"><label>Leverage · <span id="cs-lev-val">20</span>×</label>
+                <input class="input" id="cs-lev" type="number" min="1" max="40" step="1" value="20" oninput="csPreview()"></div>
+              <div class="st-field cs-size"><label>Stop-loss %</label>
+                <input class="input" id="cs-stop" type="number" min="0.1" step="0.1" value="2" oninput="csPreview()"></div>
+              <div class="st-field cs-size"><label>Cooldown (hours) · optional</label>
+                <input class="input" id="cs-cooldown" type="number" min="0" step="1" placeholder="12 (default)"></div>
+              <div class="st-field cs-sensor" style="display:none"><label>Regime timeframe</label>
+                <select class="input" id="cs-tf"><option value="1h">1h</option><option value="4h">4h</option></select></div>
+              <div class="st-field full cs-size"><label>Protection profile · how FOX manages the stop after entry</label>
+                <select class="input" id="cs-profile"><option value="">None — fixed stop only</option></select></div>
+            </div>
+            <div class="st-preview cs-size" id="cs-preview"></div>
+            <div class="form-row" style="margin-top:14px">
+              <button class="small-button" style="flex:1" id="cs-submit" onclick="createStrategy()">Create strategy</button>
+              <button id="cs-cancel" onclick="resetStrategyForm()" style="display:none">Cancel edit</button>
+            </div>
+          </div>
+          <div class="card"><h2>Your strategies</h2>
+            <div id="strategy-signin" class="sub" style="margin-bottom:10px"></div>
+            <div id="strategy-list"><div class="muted">Loading…</div></div>
+          </div>
+        </section>
+
         <section class="page" data-page="pipeline">
           <div class="card"><h2>Pipeline health · recent webhooks</h2><div id="pipeline-status"><div class="muted">Loading…</div></div></div>
           <div class="card">
@@ -634,7 +706,7 @@ function onGoogleAuth(resp){
   googleToken=resp.credential;googleEmail=p.email;googleExp=(p.exp||0)*1000;
   sessionStorage.setItem('foxGoogleToken',googleToken);renderAuthUI();
 }
-function signOut(){googleToken=googleEmail=null;googleExp=0;sessionStorage.removeItem('foxGoogleToken');try{google.accounts.id.disableAutoSelect();}catch(e){}renderAuthUI();}
+function signOut(){googleToken=googleEmail=null;googleExp=0;window.webhookCfg=null;sessionStorage.removeItem('foxGoogleToken');try{google.accounts.id.disableAutoSelect();}catch(e){}renderAuthUI();}
 function renderAuthUI(){
   const el=document.getElementById('auth-area');if(!el)return;
   if(!GOOGLE_CLIENT_ID){el.innerHTML='';return;}
@@ -669,7 +741,7 @@ const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]
 const usd=n=>Number(n||0).toLocaleString('en-US',{style:'currency',currency:'USD',currencyDisplay:'narrowSymbol',maximumFractionDigits:2});
 const GATEDESC={rejected:["rejected","o-rej","rej",1],regime:["regime set","o-reg","reg",2],
   blocked:["blocked","o-blk","blk",3],noop:["no-op","o-noop","on",3],executed:["executed","o-exe","exe",5]};
-const PAGE_TITLES={overview:"Overview",positions:"Positions & P&L",pipeline:"Pipeline & Webhooks",risk:"Strategy Eligibility",audit:"Audit & Replay"};
+const PAGE_TITLES={overview:"Overview",positions:"Positions & P&L",strategies:"Strategies",pipeline:"Pipeline & Webhooks",risk:"Strategy Eligibility",audit:"Audit & Replay"};
 
 function showPage(name){
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.dataset.page===name));
@@ -1237,6 +1309,178 @@ async function clearStrategySizing(strategy){
   catch(e){onControlError(e);}
 }
 
+// ---- Strategies tab ----
+let csType='funded', csEditing=null;
+function csSetType(t){
+  csType=t;
+  document.querySelectorAll('#cs-type button').forEach(b=>b.classList.toggle('active',b.dataset.type===t));
+  const sensor=t==='sensor';
+  document.querySelectorAll('#create-strategy-card .cs-size').forEach(el=>el.style.display=sensor?'none':'');
+  document.querySelectorAll('#create-strategy-card .cs-sensor').forEach(el=>el.style.display=sensor?'':'none');
+}
+function csPreview(){
+  const el=document.getElementById('cs-preview');if(!el||csType==='sensor')return;
+  const m=parseFloat(document.getElementById('cs-margin').value)||0,l=parseInt(document.getElementById('cs-lev').value)||0,s=parseFloat(document.getElementById('cs-stop').value)||0;
+  document.getElementById('cs-lev-val').textContent=l||'—';
+  el.innerHTML=`<div class="pv-head"><span>Sizes to</span><b>$${(m*l).toLocaleString()} notional</b></div>
+    <div class="pv-row"><span>Margin · leverage</span><b>$${m.toLocaleString()} · ${l}×</b></div>
+    <div class="pv-row"><span>Initial stop</span><b>${s}% price move</b></div>`;
+}
+function profileOptions(sel){
+  const profs=Object.keys((window.protData&&window.protData.profiles)||{});
+  return '<option value="">None</option>'+profs.map(n=>`<option value="${esc(n)}"${n===sel?' selected':''}>${esc(n)}</option>`).join('');
+}
+function csFillProfiles(){
+  const sel=document.getElementById('cs-profile');if(!sel)return;const cur=sel.value;
+  sel.innerHTML='<option value="">None — fixed stop only</option>'+Object.keys((window.protData&&window.protData.profiles)||{}).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value=cur;
+}
+async function createStrategy(){
+  const name=document.getElementById('cs-name').value.trim();
+  if(!name)return alert('Enter a name.');
+  const body={name,type:csType,coin:document.getElementById('cs-coin').value};
+  if(csType==='sensor'){body.regime_timeframe=document.getElementById('cs-tf').value;}
+  else{
+    body.margin_usd=parseFloat(document.getElementById('cs-margin').value)||0;
+    body.leverage=parseInt(document.getElementById('cs-lev').value)||0;
+    body.stop_pct=(parseFloat(document.getElementById('cs-stop').value)||0)/100;
+    const cd=document.getElementById('cs-cooldown').value;if(cd!=='')body.cooldown_hours=parseFloat(cd);
+    body.profile=document.getElementById('cs-profile').value;
+    if(!(body.margin_usd>0)||!(body.leverage>0))return alert('Enter margin and leverage.');
+    if(!(body.stop_pct>0))return alert('Enter a stop-loss.');
+  }
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{
+    const r=await fetch(BOT+"/control/strategy",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
+    const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");
+    alert((csEditing?'Saved ':'Created ')+name+'. Copy its webhook message below to wire the TradingView alert.');
+    resetStrategyForm();load();
+  }catch(e){onControlError(e);}
+}
+function resetStrategyForm(){
+  csEditing=null;
+  const n=document.getElementById('cs-name');n.value='';n.disabled=false;
+  document.getElementById('cs-title').textContent='Create a strategy';
+  document.getElementById('cs-submit').textContent='Create strategy';
+  document.getElementById('cs-cancel').style.display='none';
+  document.getElementById('cs-margin').value=100;document.getElementById('cs-lev').value=20;
+  document.getElementById('cs-stop').value=2;document.getElementById('cs-cooldown').value='';
+  document.getElementById('cs-profile').value='';csSetType('funded');csPreview();
+}
+function editStrategy(name){
+  const r=window.regRows[name],sz=(window.szByName||{})[name]||{};if(!r)return;
+  const n=document.getElementById('cs-name');n.value=name;n.disabled=true;   // name is the key
+  document.getElementById('cs-coin').value=r.coin;csSetType(r.type);
+  if(r.type==='sensor'){document.getElementById('cs-tf').value=r.regime_timeframe||'1h';}
+  else{
+    document.getElementById('cs-margin').value=sz.margin_usd!=null?sz.margin_usd:100;
+    document.getElementById('cs-lev').value=sz.leverage!=null?sz.leverage:20;
+    document.getElementById('cs-stop').value=sz.stop_pct?+(sz.stop_pct*100).toFixed(2):2;
+    document.getElementById('cs-cooldown').value=r.cooldown_hours!=null?r.cooldown_hours:'';
+    document.getElementById('cs-profile').value=r.profile||'';
+  }
+  csEditing=name;
+  document.getElementById('cs-title').textContent='Edit · '+name;
+  document.getElementById('cs-submit').textContent='Save changes';
+  document.getElementById('cs-cancel').style.display='';
+  csPreview();document.getElementById('create-strategy-card').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function toggleStrategyEnabled(name,enable){
+  const r=window.regRows[name],sz=(window.szByName||{})[name]||{};if(!r)return;
+  const body={name,type:r.type,coin:r.coin,enabled:enable};
+  if(r.type==='sensor')body.regime_timeframe=r.regime_timeframe||'1h';
+  else{body.margin_usd=sz.margin_usd;body.leverage=sz.leverage;body.stop_pct=sz.stop_pct;
+    if(r.cooldown_hours!=null)body.cooldown_hours=r.cooldown_hours;body.profile=r.profile||'';}
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{const resp=await fetch(BOT+"/control/strategy",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
+    const d=await resp.json();if(!d.ok)throw new Error(d.error||"rejected");load();}catch(e){onControlError(e);}
+}
+async function deleteStrategy(name){
+  if(!confirm('Delete strategy "'+name+'"?\n\nRemoves its definition (trade history is kept). Its TradingView alert will then be rejected.'))return;
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{const r=await fetch(BOT+"/control/strategy-delete",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({name})});
+    const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");load();}catch(e){onControlError(e);}
+}
+async function saveBuiltinStrategy(name){
+  const i=window.regIndex[name];
+  const m=parseFloat(document.getElementById('es-m-'+i).value),l=parseInt(document.getElementById('es-l-'+i).value),s=parseFloat(document.getElementById('es-s-'+i).value),p=document.getElementById('es-p-'+i).value;
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{
+    if(m>0&&l>0){const body={strategy:name,margin_usd:m,leverage:l};if(s>0)body.stop_pct=s/100;
+      const r=await fetch(BOT+"/control/strategy-sizing",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
+      const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");}
+    if(p!==((window.regRows[name]||{}).profile||'')){
+      const r2=await fetch(BOT+"/control/protection",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({strategy:name,profile:p})});
+      const d2=await r2.json();if(!d2.ok)throw new Error(d2.error||"rejected");}
+    load();
+  }catch(e){onControlError(e);}
+}
+async function copyText(btn,text){
+  try{await navigator.clipboard.writeText(text);}
+  catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(ta);}
+  const old=btn.textContent;btn.textContent='Copied ✓';btn.classList.add('done');setTimeout(()=>{btn.textContent=old;btn.classList.remove('done');},1400);
+}
+async function ensureWebhookConfig(){
+  if(window.webhookCfg)return window.webhookCfg;
+  const h=controlHeaders();if(!h)return null;
+  try{const r=await fetch(BOT+"/control/webhook-config",{headers:h});const d=await r.json();
+    if(d.ok){window.webhookCfg={url:d.webhook_url,secret:d.secret};return window.webhookCfg;}}catch(e){}
+  return null;
+}
+async function toggleMessages(name){
+  const i=window.regIndex[name],panel=document.getElementById('msg-'+i);if(!panel)return;
+  if(panel.classList.contains('open')){panel.classList.remove('open');return;}
+  panel.classList.add('open');panel.innerHTML='<div class="muted">Loading…</div>';
+  const cfg=await ensureWebhookConfig();
+  if(!cfg){panel.innerHTML='<div class="muted">Sign in with Google (top-right) to reveal your webhook messages.</div>';return;}
+  const row=window.regRows[name];
+  const events=row.type==='sensor'?[['Long','Regime → long'],['Short','Regime → short']]
+    :[['Long','Open long'],['Short','Open short'],['Exit Long','Close long'],['Exit Short','Close short']];
+  const msg=ev=>`{"secret": "${cfg.secret}", "strategy": "${name}", "event": "${ev}", "ticker": "{{ticker}}", "time": "{{timenow}}"}`;
+  panel.innerHTML=`<div class="msg-url">Webhook URL: <b>${esc(cfg.url)}</b> · TradingView alert message box = the JSON below (condition: "Order fills and alert() function calls").</div>`
+    +events.map(([ev,lbl])=>{const m=msg(ev);
+      return `<div class="msg-block"><div class="mtitle"><small>${esc(lbl)} · ${esc(ev)}</small><button class="copy-btn" onclick='copyText(this,${JSON.stringify(m)})'>Copy</button></div><pre>${esc(m)}</pre></div>`;}).join('');
+}
+function renderStrategyList(rows){
+  const el=document.getElementById('strategy-list');if(!el)return;
+  if(!rows||!rows.length){el.innerHTML='<div class="muted">No strategies yet.</div>';return;}
+  el.innerHTML=rows.map((r,i)=>{
+    const sz=(window.szByName||{})[r.strategy]||{};
+    const badge=r.type==='funded'?'b-funded':r.type==='regime'?'b-regime':'b-sensor';
+    const state=r.user_created?(r.enabled?'<span class="strat-pill p-on">enabled</span>':'<span class="strat-pill p-off">disabled</span>'):'<span class="strat-pill p-builtin">built-in</span>';
+    const wired=r.wired?'<span class="strat-pill p-on">✅ wired</span>':'<span class="strat-pill p-builtin">⚠ awaiting fire</span>';
+    const nEsc=esc(r.strategy).replace(/'/g,"\\'");
+    const sizeTxt=r.type==='sensor'
+      ?`Sets the BTC ${esc(r.regime_timeframe||'')} regime · never opens a trade`
+      :`Fires: <b>$${(sz.notional_usd||0).toLocaleString()}</b> notional${sz.leverage?` · $${sz.margin_usd} @ ${sz.leverage}×`:''} · ${((sz.stop_pct||0)*100).toFixed(0)}% stop`;
+    const prof=r.type==='sensor'?'':(r.profile?` · Protection: <b>${esc(r.profile)}</b>`:' · No protection');
+    let controls;
+    if(r.user_created){
+      controls=`<div class="strat-actions">
+        <button class="pos-btn trail" onclick="editStrategy('${nEsc}')">Edit</button>
+        <button class="pos-btn" onclick="toggleStrategyEnabled('${nEsc}',${r.enabled?'false':'true'})">${r.enabled?'Disable':'Enable'}</button>
+        <button class="pos-btn close" onclick="deleteStrategy('${nEsc}')">Delete</button>
+        <button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button></div>`;
+    }else if(r.type!=='sensor'){
+      controls=`<div class="strat-controls">
+        <div><label class="trail-label">Margin $</label><input class="input" id="es-m-${i}" type="number" min="1" value="${sz.margin_usd!=null?sz.margin_usd:''}" placeholder="—"></div>
+        <div><label class="trail-label">Leverage</label><input class="input" id="es-l-${i}" type="number" min="1" value="${sz.leverage!=null?sz.leverage:''}" placeholder="—"></div>
+        <div><label class="trail-label">Stop %</label><input class="input" id="es-s-${i}" type="number" min="0.1" step="0.1" value="${sz.stop_pct?+(sz.stop_pct*100).toFixed(2):''}" placeholder="—"></div>
+        <div><label class="trail-label">Protection</label><select class="input" id="es-p-${i}">${profileOptions(r.profile)}</select></div>
+        <button class="pos-btn trail" onclick="saveBuiltinStrategy('${nEsc}')">Save</button></div>
+        <div class="strat-actions"><button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button></div>`;
+    }else{
+      controls=`<div class="strat-actions"><button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button></div>`;
+    }
+    return `<div class="strat-card">
+      <div class="strat-head"><b>${esc(r.strategy)}</b><span class="strat-badge ${badge}">${esc(r.type)}</span><span class="strat-pill p-builtin">${esc(r.coin)}</span>${state}${wired}</div>
+      <div class="strat-meta">${sizeTxt}${prof}</div>
+      ${controls}
+      <div class="msg-panel" id="msg-${i}"></div>
+    </div>`;
+  }).join('');
+}
+
 async function load(){
   const err=document.getElementById("err");err.innerHTML="";
   try{
@@ -1251,7 +1495,7 @@ async function load(){
       fetch(BOT+"/protection").then(r=>r.json()).catch(()=>({enabled:false,profiles:{},assignments:{},positions:{},recent:[]}))]);
     window.protData=prot&&prot.positions?prot:{enabled:false,profiles:{},assignments:{},positions:{},recent:[]};
     window.regimeManualLog=st.regime_manual_log||[];
-    stFillProfiles();
+    stFillProfiles();csFillProfiles();
     renderTradeHistory((fillsResp&&fillsResp.fills)||[]);
 
     const mode=document.getElementById("mode");
@@ -1482,6 +1726,14 @@ async function load(){
       const role=s.gate==="sensor"?"regime sensor":s.gate==="counter_regime"?"5m counter-regime":(s.funded?'<span class="pill p-fund">funded</span>':"paper");
       return `<tr><td>${esc(s.strategy)}</td><td>${s.coin}</td><td>${role}</td><td>${wired}</td><td class="num">${s.webhooks_received}</td><td class="muted">${s.last_seen?locTime(s.last_seen):"—"}</td></tr>`;}).join("");
 
+    // ---- strategies tab ----
+    window.regRows={};window.regIndex={};
+    (reg.strategies||[]).forEach((r,i)=>{window.regRows[r.strategy]=r;window.regIndex[r.strategy]=i;});
+    window.szByName={};(v.strategies||[]).forEach(s=>{window.szByName[s.strategy]=s.sizing||{};});
+    renderStrategyList(reg.strategies||[]);
+    const sgn=document.getElementById("strategy-signin");
+    if(sgn)sgn.innerHTML=controlHeaders()?'Signed in — “Webhook &amp; messages” shows your ready-to-paste alert JSON (with your secret).':'Sign in with Google (top-right) to reveal each strategy’s webhook messages and to create or edit strategies.';
+
     // ---- position book (positions page) ----
     const pos=st.positions||{},keys=Object.keys(pos);
     document.getElementById("pos-empty").style.display=keys.length?"none":"block";
@@ -1499,6 +1751,6 @@ async function load(){
   }catch(e){err.innerHTML='<div class="err">Bot unreachable (may be redeploying). Retrying…<br><code>'+esc(String(e))+'</code></div>';document.getElementById("synced").textContent="reconnecting…";}
 }
 initGoogle();
-stRenderTemplates();stMarkRefresh();
+stRenderTemplates();stMarkRefresh();csPreview();
 load();setInterval(load,30000);
 </script></body></html>
