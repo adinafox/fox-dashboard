@@ -387,6 +387,36 @@
   .trail-caption{font-size:12px;color:var(--dim);margin-bottom:14px}
   .trail-caption b{color:var(--txt);font-family:var(--mono)}
 
+  /* ---- Hyperliquid-style trade panel + protection chart ---- */
+  :root{--teal:#46e0cf;--teal-ink:#04140f;--teal-mut:rgba(70,224,207,.13);--teal-line:rgba(70,224,207,.42)}
+  .hl-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 6px}
+  .hl-toggle button{border:1px solid var(--line);background:var(--tile);color:var(--dim);font-weight:800;font-size:14px;padding:12px;border-radius:11px;cursor:pointer;letter-spacing:.02em;transition:background .12s,border-color .12s,color .12s}
+  .hl-toggle button:hover{border-color:var(--line2)}
+  .hl-toggle button.buy.active{background:var(--teal-mut);border-color:var(--teal-line);color:var(--teal)}
+  .hl-toggle button.sell.active{background:rgba(255,95,110,.14);border-color:rgba(255,95,110,.4);color:var(--red)}
+  .hl-readout{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);padding:5px 2px}
+  .hl-readout b{color:var(--txt);font-family:var(--mono);font-weight:600}
+  .hl-optrow{display:flex;align-items:center;gap:9px;padding:10px 0 4px;cursor:pointer;user-select:none}
+  .hl-optrow .chk{width:17px;height:17px;border:1.5px solid var(--line2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;background:var(--tile);flex:0 0 auto}
+  .hl-optrow.on .chk{background:var(--teal);border-color:var(--teal);color:var(--teal-ink)}
+  .hl-optrow b{font-size:13px;color:var(--txt)}
+  .hl-optrow .opt-tag{margin-left:auto;font-size:11px;color:var(--dim)}
+  .hl-summary{margin-top:12px;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+  .hl-summary .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim);padding:3.5px 0}
+  .hl-summary .row b{color:var(--txt);font-family:var(--mono);font-weight:600}
+  .hl-summary .row b.pos{color:var(--teal)}.hl-summary .row b.neg{color:var(--red)}
+  .btn-teal{background:var(--teal);color:var(--teal-ink);border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;width:100%;letter-spacing:.02em;transition:filter .12s}
+  .btn-teal:hover{filter:brightness(1.07);border:none}
+  .btn-teal.sell{background:var(--red);color:#fff}
+  .lev-chip{font-size:11px;font-weight:700;color:var(--teal);background:var(--teal-mut);border:1px solid var(--teal-line);border-radius:7px;padding:4px 9px}
+  .mode-chip{font-size:11px;font-weight:700;color:var(--dim);background:var(--tile);border:1px solid var(--line);border-radius:7px;padding:4px 9px}
+  /* protection profile chart */
+  .prot-chart{margin-top:10px;background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:11px 12px 8px}
+  .prot-chart .pc-title{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px;font-weight:700}
+  .prot-chart svg{width:100%;height:auto;display:block}
+  .pc-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;font-size:11px;color:var(--dim)}
+  .pc-legend span{display:inline-flex;align-items:center;gap:5px}
+  .pc-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
   /* ---- Smart Trade + per-strategy sizing ---- */
   .st-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin-top:6px}
   .st-grid .full{grid-column:1 / -1}
@@ -545,44 +575,47 @@
 
         <section class="page" data-page="positions">
           <div class="card" id="smart-trade-card">
-            <h2>Smart Trade · open a position</h2>
-            <div class="sub" style="margin-bottom:12px">Market entry with a protective stop, sized by the margin you put down × leverage. Cross margin. Real order on Hyperliquid.</div>
-            <div class="st-grid">
-              <div class="st-field"><label>Market</label>
-                <select class="input" id="st-coin" onchange="stMarkRefresh()">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">
+              <h2 style="margin:0">Smart Trade</h2>
+              <div style="display:flex;gap:6px;align-items:center">
+                <span class="mode-chip">Cross</span><span class="lev-chip"><span id="st-lev-chip">20</span>×</span>
+                <select class="input" id="st-coin" style="padding:6px 8px;width:auto" onchange="stMarkRefresh()">
                   <option value="BTC">BTC</option><option value="ETH">ETH</option>
                   <option value="SOL">SOL</option><option value="SUI">SUI</option><option value="HYPE">HYPE</option>
-                </select></div>
-              <div class="st-field"><label>Direction</label>
-                <div class="segmented" id="st-side" style="width:100%">
-                  <button type="button" class="seg-long active" data-side="long" onclick="stSetSide('long')" style="flex:1">Long</button>
-                  <button type="button" class="seg-short" data-side="short" onclick="stSetSide('short')" style="flex:1">Short</button>
-                </div></div>
+                </select>
+              </div>
+            </div>
+            <div class="hl-toggle" id="st-side">
+              <button type="button" class="buy active" data-side="long" onclick="stSetSide('long')">Buy / Long</button>
+              <button type="button" class="sell" data-side="short" onclick="stSetSide('short')">Sell / Short</button>
+            </div>
+            <div class="hl-readout"><span>Available to trade</span><b id="st-avail">—</b></div>
+            <div class="hl-readout" style="border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:4px"><span>Current <span id="st-curcoin">BTC</span> position</span><b id="st-curpos">—</b></div>
+            <div class="st-grid" style="margin-top:8px">
               <div class="st-field"><label>Margin (USD) · what you put down</label>
                 <input class="input" id="st-margin" type="number" min="1" step="1" value="100" oninput="stPreview()"></div>
               <div class="st-field"><label>Leverage · <span id="st-lev-val">20</span>×</label>
                 <input class="input" id="st-lev" type="number" min="1" max="40" step="1" value="20" oninput="stPreview()"></div>
-              <div class="st-field"><label>Stop-loss</label>
-                <div class="st-inline">
-                  <input class="input" id="st-stop" type="number" min="0" step="0.1" value="2" oninput="stPreview()">
-                  <select class="input" id="st-stop-mode" style="flex:0 0 90px" onchange="stPreview()">
-                    <option value="pct">%</option><option value="price">price</option></select>
-                </div></div>
-              <div class="st-field"><label>Take-profit <span class="muted" style="text-transform:none">· managed by FOX</span></label>
-                <div class="st-inline">
-                  <select class="input" id="st-tp-mode" style="flex:0 0 130px" onchange="stPreview()">
-                    <option value="off">Off</option><option value="target">Take-profit %</option></select>
-                  <input class="input" id="st-tp" type="number" min="0" step="0.1" value="5" oninput="stPreview()" disabled>
-                </div></div>
-              <div class="st-field full"><label>Protection profile · how FOX manages the stop after entry</label>
-                <select class="input" id="st-profile"><option value="">None — fixed stop only</option></select></div>
             </div>
-            <div class="st-preview" id="st-preview"><div class="muted">Enter margin and leverage to preview.</div></div>
+            <div class="hl-optrow on" id="st-stop-row" onclick="stToggleStop()"><span class="chk">✓</span><b>Stop-loss</b><span class="opt-tag">optional</span></div>
+            <div id="st-stop-wrap" class="st-inline" style="margin-top:2px">
+              <input class="input" id="st-stop" type="number" min="0" step="0.1" value="2" oninput="stPreview()">
+              <select class="input" id="st-stop-mode" style="flex:0 0 90px" onchange="stPreview()">
+                <option value="pct">%</option><option value="price">price</option></select>
+            </div>
+            <div class="hl-optrow" id="st-tp-row" onclick="stToggleTp()"><span class="chk">✓</span><b>Take-profit</b><span class="opt-tag">managed by FOX</span></div>
+            <div id="st-tp-wrap" class="st-inline" style="margin-top:2px;display:none">
+              <input class="input" id="st-tp" type="number" min="0" step="0.1" value="5" oninput="stPreview()">
+              <span class="mode-chip" style="align-self:center">% target</span>
+              <input type="hidden" id="st-tp-mode" value="target">
+            </div>
+            <div class="st-field" style="margin-top:11px"><label>Protection profile · how FOX manages the stop after entry</label>
+              <select class="input" id="st-profile" onchange="stPreview()"><option value="">None — fixed stop only</option></select></div>
+            <div class="prot-chart" id="st-prot-chart" style="display:none"></div>
+            <div class="hl-summary" id="st-preview"></div>
+            <button class="btn-teal" id="st-submit-btn" style="margin-top:12px" onclick="submitSmartTrade()">Open Long</button>
             <div class="st-tpl" id="st-templates"></div>
-            <div class="form-row" style="margin-top:14px">
-              <button class="small-button" style="flex:1" onclick="submitSmartTrade()">Open trade</button>
-              <button onclick="stSaveTemplate()" title="Save this ticket for one-click reuse">＋ Save as template</button>
-            </div>
+            <div style="text-align:center;margin-top:8px"><button onclick="stSaveTemplate()" style="font-size:12px" title="Save this ticket for one-click reuse">＋ Save as template</button></div>
           </div>
           <div class="card"><h2>Strategy P&amp;L · realized by strategy</h2>
             <div class="pnl-legend"><span><i style="background:var(--green)"></i>Profit</span><span><i style="background:var(--red)"></i>Loss</span><span style="color:var(--dim2)">bars diverge from the zero line</span></div>
@@ -634,11 +667,11 @@
                   <select class="input" id="cs-tf"><option value="1h">1h</option><option value="4h">4h</option></select></div>
                 <div class="st-field full cs-size"><label>Protection profile · how FOX manages the stop after entry</label>
                   <select class="input" id="cs-profile" onchange="csProfileInfo()"><option value="">None — fixed stop only</option></select></div>
-                <div class="st-field full cs-size"><div class="st-preview" id="cs-profile-info" style="display:none"></div></div>
+                <div class="st-field full cs-size"><div class="prot-chart" id="cs-profile-info" style="display:none"></div></div>
               </div>
               <div class="st-preview cs-size" id="cs-preview"></div>
               <div class="form-row" style="margin-top:14px">
-                <button class="small-button" style="flex:1" id="cs-submit" onclick="createStrategy()">Create strategy</button>
+                <button class="btn-teal" style="flex:1" id="cs-submit" onclick="createStrategy()">Create strategy</button>
                 <button id="cs-cancel" onclick="closeCreateForm()">Cancel</button>
               </div>
             </div>
@@ -1190,13 +1223,69 @@ async function loadRegimeChart(){
   }
 }
 
+// ---- Protection profile visual (stop-ladder: profit vs risk) ----
+function protectionChartSVG(p, stopFrac, side){
+  p=p||{};
+  const be=+p.be_trigger_pct||0, beOff=+p.be_offset_pct||0, trTrig=+p.trail_trigger_pct||0,
+        trDist=+p.trail_distance_pct||0, tp=+p.tp_pct||0, initStop=stopFrac>0?stopFrac:0;
+  const teal='#46e0cf', red='#ff5f6e', dim='#5b6a7e', ink='#8a97ab';
+  const xMax=Math.max(tp, trTrig+trDist, be*1.4, initStop*2, 0.05)*1.2;
+  const yTop=Math.max(xMax*0.7, beOff*3, 0.01), yBot=-(initStop||0.012)*1.4;
+  const W=520,H=186,padL=10,padR=58,padT=26,padB=26, pw=W-padL-padR, ph=H-padT-padB;
+  const X=v=>padL+(v/xMax)*pw, Y=v=>padT+(1-(v-yBot)/(yTop-yBot))*ph;
+  const stopSeg=[];                                   // the stop ladder polyline
+  if(initStop>0){stopSeg.push([0,-initStop],[be,-initStop],[be,beOff]);} else {stopSeg.push([be,beOff]);}
+  stopSeg.push([trTrig,beOff]);
+  for(let x=trTrig;x<=xMax+1e-9;x+=xMax/60)stopSeg.push([x,Math.max(x-trDist,beOff)]);
+  const path=stopSeg.map((q,i)=>(i?'L':'M')+X(q[0]).toFixed(1)+' '+Y(q[1]).toFixed(1)).join(' ');
+  // fills: red risk band before breakeven; teal locked-profit area under the rising stop
+  const risk=initStop>0?`<rect x="${X(0).toFixed(1)}" y="${Y(0).toFixed(1)}" width="${(X(be)-X(0)).toFixed(1)}" height="${(Y(-initStop)-Y(0)).toFixed(1)}" fill="${red}" opacity="0.09"/>`:'';
+  const prof=stopSeg.filter(q=>q[1]>0.0001);
+  const profFill=prof.length>1?`<path d="M${X(prof[0][0]).toFixed(1)} ${Y(0).toFixed(1)} `+prof.map(q=>'L'+X(q[0]).toFixed(1)+' '+Y(q[1]).toFixed(1)).join(' ')+` L${X(prof[prof.length-1][0]).toFixed(1)} ${Y(0).toFixed(1)} Z" fill="${teal}" opacity="0.13"/>`:'';
+  const diagEnd=Math.min(xMax,yTop);
+  const diag=`<line x1="${X(0).toFixed(1)}" y1="${Y(0).toFixed(1)}" x2="${X(diagEnd).toFixed(1)}" y2="${Y(diagEnd).toFixed(1)}" stroke="${ink}" stroke-width="1" opacity="0.3" stroke-dasharray="2 3"/><text x="${X(diagEnd).toFixed(1)}" y="${(Y(diagEnd)-4).toFixed(1)}" fill="${ink}" font-size="8.5" opacity="0.7">price</text>`;
+  const entry=`<line x1="${padL}" y1="${Y(0).toFixed(1)}" x2="${W-padR}" y2="${Y(0).toFixed(1)}" stroke="${ink}" stroke-dasharray="3 3" stroke-width="1"/>`;
+  const anc=xp=>xp<padL+52?'start':(xp>W-padR-52?'end':'middle');
+  const vline=x=>`<line x1="${X(x).toFixed(1)}" y1="${padT}" x2="${X(x).toFixed(1)}" y2="${H-padB}" stroke="${teal}" stroke-width="1" opacity="0.26"/>`;
+  const vlabel=(x,label,y)=>`<text x="${X(x).toFixed(1)}" y="${y}" fill="${teal}" font-size="8.5" text-anchor="${anc(X(x))}" font-weight="700">${label}</text>`;
+  const closeLbl=be>0&&trTrig>0&&(X(trTrig)-X(be)<62);   // stagger labels when triggers are near
+  const beBlock=be>0?vline(be)+vlabel(be,'BREAKEVEN',11):'';
+  const trBlock=trTrig>0?vline(trTrig)+vlabel(trTrig,'TRAIL',closeLbl?21:11):'';
+  const tpMark=tp>0?`<line x1="${X(tp).toFixed(1)}" y1="${padT}" x2="${X(tp).toFixed(1)}" y2="${H-padB}" stroke="${teal}" stroke-width="1.5" stroke-dasharray="4 3"/><text x="${X(tp).toFixed(1)}" y="${H-padB+13}" fill="${teal}" font-size="8.5" text-anchor="middle" font-weight="700">TP +${(tp*100).toFixed(1)}%</text>`:'';
+  const yLab=(v,txt,c)=>`<text x="${W-padR+5}" y="${(Y(v)+3).toFixed(1)}" fill="${c}" font-size="8.5">${txt}</text>`;
+  const labels=yLab(0,'entry',ink)+(initStop>0?yLab(-initStop,'−'+(initStop*100).toFixed(1)+'%',red):'')+yLab(yTop,'+'+(yTop*100).toFixed(0)+'%',ink);
+  const nakedNote=initStop<=0?`<text x="${(X(0)+4).toFixed(1)}" y="${(Y(0)+13).toFixed(1)}" fill="${red}" font-size="8.5">no stop until breakeven (naked)</text>`:'';
+  const xlab=`<text x="${X(xMax).toFixed(1)}" y="${H-padB+13}" fill="${ink}" font-size="8.5" text-anchor="end">peak profit →</text>`;
+  const stopLine=`<path d="${path}" fill="none" stroke="${teal}" stroke-width="2" stroke-linejoin="round"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Protection profile stop path">`
+    +risk+profFill+diag+entry+beBlock+trBlock+tpMark+stopLine+labels+nakedNote+xlab+`</svg>`;
+}
+function renderProtChart(containerId, profileName, stopFrac, side){
+  const el=document.getElementById(containerId);if(!el)return;
+  const rec=(window.protData&&window.protData.profiles||{})[profileName];
+  if(!profileName||!rec){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='';
+  el.innerHTML=`<div class="pc-title">${esc(profileName)} · where your stop sits as profit grows</div>`
+    +protectionChartSVG(rec.params,stopFrac,side)
+    +`<div class="pc-legend"><span style="color:var(--teal)">▲ stop ladder</span><span><i style="background:#46e0cf"></i>locked profit</span><span><i style="background:#ff5f6e"></i>at-risk</span><span><i style="background:#5b6a7e"></i>price (peak)</span></div>`;
+}
+
 // ---- Smart Trade (manual position ticket) ----
-let stSide='long', stMark=0, stMarkCoin='';
+let stSide='long', stMark=0, stMarkCoin='', stStopOn=true, stTpOn=false;
 const ST_MAXLEV={BTC:40,ETH:25,SOL:20,SUI:10,HYPE:10};
 function openSmartTrade(){showPage('positions');const c=document.getElementById('smart-trade-card');if(c){c.scrollIntoView({behavior:'smooth',block:'start'});c.style.transition='box-shadow .3s';c.style.boxShadow='0 0 0 2px var(--accent)';setTimeout(()=>c.style.boxShadow='',1600);}}
-function stSetSide(s){stSide=s;document.querySelectorAll('#st-side button').forEach(b=>b.classList.toggle('active',b.dataset.side===s));stPreview();}
+function stSetSide(s){
+  stSide=s;
+  document.querySelectorAll('#st-side button').forEach(b=>b.classList.toggle('active',b.dataset.side===s));
+  const btn=document.getElementById('st-submit-btn');
+  if(btn){btn.textContent='Open '+(s==='long'?'Long':'Short');btn.classList.toggle('sell',s==='short');}
+  stPreview();
+}
+function stToggleStop(){stStopOn=!stStopOn;document.getElementById('st-stop-row').classList.toggle('on',stStopOn);document.getElementById('st-stop-wrap').style.display=stStopOn?'':'none';stPreview();}
+function stToggleTp(){stTpOn=!stTpOn;document.getElementById('st-tp-row').classList.toggle('on',stTpOn);document.getElementById('st-tp-wrap').style.display=stTpOn?'':'none';stPreview();}
 async function stMarkRefresh(){
   const coin=document.getElementById('st-coin').value;stMarkCoin=coin;
+  const cc=document.getElementById('st-curcoin');if(cc)cc.textContent=coin;
   const lv=document.getElementById('st-lev');if(lv){const mx=ST_MAXLEV[coin]||20;lv.max=mx;if(+lv.value>mx)lv.value=mx;}
   try{const r=await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${coin}USDT`).then(r=>r.json());stMark=parseFloat(r.price)||0;}
   catch(e){stMark=0;}
@@ -1213,26 +1302,36 @@ function stPreview(){
   const margin=parseFloat(document.getElementById('st-margin').value)||0;
   const lev=parseInt(document.getElementById('st-lev').value)||0;
   document.getElementById('st-lev-val').textContent=lev||'—';
-  const tpMode=document.getElementById('st-tp-mode').value;
-  document.getElementById('st-tp').disabled=tpMode==='off';
-  const notional=margin*lev, mark=stMark, side=stSide;
+  const chip=document.getElementById('st-lev-chip');if(chip)chip.textContent=lev||'—';
+  const notional=margin*lev, mark=stMark, side=stSide, profile=document.getElementById('st-profile').value;
   const fx=n=>window.fmtHLpx?fmtHLpx(n):Number(n).toLocaleString(undefined,{maximumFractionDigits:n<10?4:2});
+  // available + current position from live portfolio
+  const pf=window.pf||{};
+  const av=document.getElementById('st-avail');if(av)av.textContent=pf.spot_usdc_available!=null?usd(pf.spot_usdc_available):(pf.available?'—':'sign of exchange');
+  const cur=(pf.positions||[]).find(p=>p.coin===stMarkCoin);
+  const cp=document.getElementById('st-curpos');if(cp)cp.textContent=cur?`${cur.side==='long'?'+':'−'}${cur.size} ${stMarkCoin}`:`0 ${stMarkCoin}`;
+  // stop
   const stopMode=document.getElementById('st-stop-mode').value, stopIn=parseFloat(document.getElementById('st-stop').value)||0;
   let stopPx=0, stopPct=0;
-  if(stopMode==='price'&&mark>0){stopPx=stopIn;stopPct=Math.abs(mark-stopPx)/mark;}
-  else if(stopMode==='pct'){stopPct=stopIn/100;if(mark>0)stopPx=side==='long'?mark*(1-stopPct):mark*(1+stopPct);}
+  if(stStopOn){
+    if(stopMode==='price'&&mark>0){stopPx=stopIn;stopPct=Math.abs(mark-stopPx)/mark;}
+    else if(stopMode==='pct'){stopPct=stopIn/100;if(mark>0)stopPx=side==='long'?mark*(1-stopPct):mark*(1+stopPct);}
+  }
   const riskUsd=notional*stopPct, roeStop=stopPct*lev*100;
   let liqPx=0;if(mark>0&&lev>0)liqPx=side==='long'?mark*(1-1/lev):mark*(1+1/lev);
   const tpVal=parseFloat(document.getElementById('st-tp').value)||0;
-  let tpPx=0;if(tpMode==='target'&&tpVal>0&&mark>0)tpPx=side==='long'?mark*(1+tpVal/100):mark*(1-tpVal/100);
+  let tpPx=0;if(stTpOn&&tpVal>0&&mark>0)tpPx=side==='long'?mark*(1+tpVal/100):mark*(1-tpVal/100);
+  renderProtChart('st-prot-chart', profile, stStopOn?stopPct:0, side);
   el.innerHTML=`
-    <div class="pv-head"><span>You open</span><b>${side.toUpperCase()} $${notional.toLocaleString(undefined,{maximumFractionDigits:0})} ${stMarkCoin}</b></div>
-    <div class="pv-row"><span>Margin · leverage</span><b>$${margin.toLocaleString()} · ${lev}×</b></div>
-    ${mark>0?`<div class="pv-row"><span>Est. entry</span><b>${fx(mark)}</b></div>`:''}
-    ${stopPct>0?`<div class="pv-row"><span>Stop${mark>0?' @ '+fx(stopPx):''}</span><b>−${(stopPct*100).toFixed(2)}%${mark>0?` · −$${riskUsd.toFixed(2)} · −${roeStop.toFixed(0)}% ROE`:''}</b></div>`:''}
-    ${tpPx>0?`<div class="pv-row"><span>Take-profit @ ${fx(tpPx)}</span><b>+${tpVal}% · managed</b></div>`:''}
-    ${liqPx>0?`<div class="pv-row"><span>Est. liquidation <span class="muted" style="text-transform:none">(approx)</span></span><b>${fx(liqPx)}</b></div>`:''}
-    ${notional>0&&mark<=0?`<div class="st-warn">Live ${stMarkCoin} price unavailable for preview — the order still uses Hyperliquid's price at execution.</div>`:''}`;
+    <div class="row"><span>Order</span><b class="${side==='long'?'pos':'neg'}">${side==='long'?'BUY':'SELL'} $${notional.toLocaleString(undefined,{maximumFractionDigits:0})} ${stMarkCoin}</b></div>
+    <div class="row"><span>Margin · leverage</span><b>$${margin.toLocaleString()} · ${lev}×</b></div>
+    ${mark>0?`<div class="row"><span>Est. entry</span><b>${fx(mark)}</b></div>`:''}
+    <div class="row"><span>Stop-loss</span><b class="${stStopOn?'neg':''}">${stStopOn&&stopPct>0?`−${(stopPct*100).toFixed(2)}%${mark>0?' @ '+fx(stopPx):''}`:'none (naked)'}</b></div>
+    ${stStopOn&&stopPct>0&&mark>0?`<div class="row"><span>Risk if stopped</span><b class="neg">−$${riskUsd.toFixed(2)} · −${roeStop.toFixed(0)}% ROE</b></div>`:''}
+    ${tpPx>0?`<div class="row"><span>Take-profit</span><b class="pos">+${tpVal}% @ ${fx(tpPx)}</b></div>`:''}
+    ${liqPx>0?`<div class="row"><span>Est. liquidation (approx)</span><b>${fx(liqPx)}</b></div>`:''}
+    ${!stStopOn?`<div class="st-warn">No stop-loss — opens unprotected. ${profile?'The profile can only trail once a stop exists, so it will not manage this trade.':''}</div>`:''}
+    ${notional>0&&mark<=0?`<div class="st-warn">Live ${esc(stMarkCoin)} price unavailable for preview — the order still uses Hyperliquid's price at execution.</div>`:''}`;
 }
 async function submitSmartTrade(){
   const coin=document.getElementById('st-coin').value;
@@ -1240,15 +1339,15 @@ async function submitSmartTrade(){
   const lev=parseInt(document.getElementById('st-lev').value)||0;
   const profile=document.getElementById('st-profile').value;
   const stopMode=document.getElementById('st-stop-mode').value, stopIn=parseFloat(document.getElementById('st-stop').value)||0;
-  const tpMode=document.getElementById('st-tp-mode').value, tpVal=parseFloat(document.getElementById('st-tp').value)||0;
+  const tpVal=parseFloat(document.getElementById('st-tp').value)||0;
   if(!(margin>0)||!(lev>0))return alert('Enter a positive margin and leverage.');
-  if(!(stopIn>0))return alert('Set a stop-loss.');
+  if(stStopOn&&!(stopIn>0))return alert('Set a stop-loss, or turn the Stop-loss toggle off to trade naked.');
   const body={coin,side:stSide,margin_usd:margin,leverage:lev};
   if(profile)body.profile=profile;
-  if(stopMode==='price')body.stop_px=stopIn;else body.stop_pct=stopIn/100;
-  if(tpMode==='target'&&tpVal>0)body.tp_pct=tpVal/100;
+  if(stStopOn){if(stopMode==='price')body.stop_px=stopIn;else body.stop_pct=stopIn/100;}
+  if(stTpOn&&tpVal>0)body.tp_pct=tpVal/100;
   const notional=margin*lev;
-  const msg=`Open ${stSide.toUpperCase()} ${coin}?\n\nNotional $${notional.toLocaleString()} = $${margin} margin × ${lev}× (cross)\nStop: ${stopMode==='price'?stopIn:stopIn+'%'}`+(profile?`\nProtection: ${profile}`:'')+`\n\nThis is a REAL market order on Hyperliquid and cannot be undone.`;
+  const msg=`Open ${stSide.toUpperCase()} ${coin}?\n\nNotional $${notional.toLocaleString()} = $${margin} margin × ${lev}× (cross)\nStop: ${stStopOn?(stopMode==='price'?stopIn:stopIn+'%'):'NONE (naked)'}`+(profile?`\nProtection: ${profile}`:'')+`\n\nThis is a REAL market order on Hyperliquid and cannot be undone.`;
   if(!confirm(msg))return;
   const h=controlHeaders();if(!h)return needSignIn();
   try{
@@ -1336,18 +1435,8 @@ function openCreateForm(){document.getElementById('cs-body').style.display='';do
 function closeCreateForm(){document.getElementById('cs-toggle').textContent='＋ Add new strategy';resetStrategyForm();document.getElementById('cs-body').style.display='none';}
 function toggleCreateForm(){document.getElementById('cs-body').style.display==='none'?openCreateForm():closeCreateForm();}
 function csProfileInfo(){
-  const el=document.getElementById('cs-profile-info');if(!el)return;
-  const name=document.getElementById('cs-profile').value;
-  const rec=(window.protData&&window.protData.profiles||{})[name];
-  if(!name||!rec){el.style.display='none';el.innerHTML='';return;}
-  const p=rec.params||{},pct=v=>v==null?'off':('+'+(+(v*100).toFixed(2))+'%');
-  el.style.display='';
-  el.innerHTML=`<div class="pv-head"><span>${esc(name)} manages</span><b>after entry</b></div>
-    <div class="pv-row"><span>Breakeven trigger</span><b>${pct(p.be_trigger_pct)}</b></div>
-    <div class="pv-row"><span>Trailing arms at</span><b>${pct(p.trail_trigger_pct)}</b></div>
-    <div class="pv-row"><span>Trail distance behind peak</span><b>${p.trail_distance_pct!=null?(+(p.trail_distance_pct*100).toFixed(2))+'%':'off'}</b></div>
-    <div class="pv-row"><span>Take-profit target</span><b>${pct(p.tp_pct)}</b></div>
-    <div class="pv-row"><span>Trailing-TP giveback</span><b>${p.tp_trail_pct!=null?(+(p.tp_trail_pct*100).toFixed(2))+'%':'off'}</b></div>`;
+  const stop=(parseFloat(document.getElementById('cs-stop').value)||0)/100;
+  renderProtChart('cs-profile-info', document.getElementById('cs-profile').value, stop, 'long');
 }
 function csPreview(){
   const el=document.getElementById('cs-preview');if(!el||csType==='sensor')return;
@@ -1357,6 +1446,7 @@ function csPreview(){
     <div class="pv-row"><span>Margin · leverage</span><b>$${m.toLocaleString()} · ${l}×</b></div>
     <div class="pv-row"><span>Initial stop</span><b>${s>0?s+'% price move':'none (naked)'}</b></div>`
     +(s>0?'':`<div class="st-warn">No stop-loss — the position opens unprotected. A Protection Profile can't manage the stop without an initial one; it will run until an exit signal or you close it.</div>`);
+  csProfileInfo();                                    // refresh the profile chart with the current stop
 }
 function profileOptions(sel){
   const profs=Object.keys((window.protData&&window.protData.profiles)||{});
@@ -1555,7 +1645,7 @@ async function load(){
     mode.textContent=reg.mode==="LIVE"?"● LIVE":"○ PAPER";mode.className="badge "+(reg.mode==="LIVE"?"b-live":"b-dry");
     document.getElementById("net").textContent=reg.network;
 
-    const pf=st.portfolio||{};
+    const pf=st.portfolio||{};window.pf=pf;
     const coinColor=c=>({BTC:'#f5b942',ETH:'#a577ff',SOL:'#5b8bff'}[c]||'#8a97ab');
     const live=pf.positions||[];
     const liveUnrealized=live.reduce((a,p)=>a+(p.unrealized_pnl||0),0);
