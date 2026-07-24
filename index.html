@@ -601,44 +601,52 @@
 
         <section class="page" data-page="strategies">
           <div class="card" id="create-strategy-card">
-            <h2 id="cs-title">Create a strategy</h2>
-            <div class="sub" style="margin-bottom:12px">Define a strategy the bot accepts from TradingView — no redeploy. Set its size, protection and coin, then copy the alert message below.</div>
-            <div class="st-grid">
-              <div class="st-field full"><label>Name · must match the <code>strategy</code> field in your alert JSON</label>
-                <input class="input" id="cs-name" type="text" placeholder="e.g. MY-BTC-Breakout" maxlength="120"></div>
-              <div class="st-field"><label>Market / ticker</label>
-                <select class="input" id="cs-coin">
-                  <option value="BTC">BTC</option><option value="ETH">ETH</option>
-                  <option value="SOL">SOL</option><option value="SUI">SUI</option><option value="HYPE">HYPE</option>
-                </select></div>
-              <div class="st-field"><label>Type</label>
-                <div class="segmented" id="cs-type" style="width:100%">
-                  <button type="button" class="active" data-type="funded" onclick="csSetType('funded')" style="flex:1">Funded</button>
-                  <button type="button" data-type="regime" onclick="csSetType('regime')" style="flex:1">Regime</button>
-                  <button type="button" data-type="sensor" onclick="csSetType('sensor')" style="flex:1">Sensor</button>
-                </div></div>
-              <div class="st-field cs-size"><label>Margin (USD)</label>
-                <input class="input" id="cs-margin" type="number" min="1" step="1" value="100" oninput="csPreview()"></div>
-              <div class="st-field cs-size"><label>Leverage · <span id="cs-lev-val">20</span>×</label>
-                <input class="input" id="cs-lev" type="number" min="1" max="40" step="1" value="20" oninput="csPreview()"></div>
-              <div class="st-field cs-size"><label>Stop-loss %</label>
-                <input class="input" id="cs-stop" type="number" min="0.1" step="0.1" value="2" oninput="csPreview()"></div>
-              <div class="st-field cs-size"><label>Cooldown (hours) · optional</label>
-                <input class="input" id="cs-cooldown" type="number" min="0" step="1" placeholder="12 (default)"></div>
-              <div class="st-field cs-sensor" style="display:none"><label>Regime timeframe</label>
-                <select class="input" id="cs-tf"><option value="1h">1h</option><option value="4h">4h</option></select></div>
-              <div class="st-field full cs-size"><label>Protection profile · how FOX manages the stop after entry</label>
-                <select class="input" id="cs-profile"><option value="">None — fixed stop only</option></select></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+              <h2 id="cs-title" style="margin:0">Strategies</h2>
+              <button class="small-button" id="cs-toggle" onclick="toggleCreateForm()">＋ Add new strategy</button>
             </div>
-            <div class="st-preview cs-size" id="cs-preview"></div>
-            <div class="form-row" style="margin-top:14px">
-              <button class="small-button" style="flex:1" id="cs-submit" onclick="createStrategy()">Create strategy</button>
-              <button id="cs-cancel" onclick="resetStrategyForm()" style="display:none">Cancel edit</button>
+            <div id="cs-body" style="display:none">
+              <div class="sub" style="margin:12px 0">Define a strategy the bot accepts from TradingView — no redeploy. Set its size, protection and coin, then copy the alert message below.</div>
+              <div class="st-grid">
+                <div class="st-field full"><label>Name · must match the <code>strategy</code> field in your alert JSON</label>
+                  <input class="input" id="cs-name" type="text" placeholder="e.g. MY-BTC-Breakout" maxlength="120"></div>
+                <div class="st-field"><label>Market / ticker</label>
+                  <select class="input" id="cs-coin">
+                    <option value="BTC">BTC</option><option value="ETH">ETH</option>
+                    <option value="SOL">SOL</option><option value="SUI">SUI</option><option value="HYPE">HYPE</option>
+                  </select></div>
+                <div class="st-field"><label>Type</label>
+                  <div class="segmented" id="cs-type" style="width:100%">
+                    <button type="button" class="active" data-type="funded" onclick="csSetType('funded')" style="flex:1">Trades signals</button>
+                    <button type="button" data-type="regime" onclick="csSetType('regime')" style="flex:1">Regime-gated</button>
+                    <button type="button" data-type="sensor" onclick="csSetType('sensor')" style="flex:1">Sensor</button>
+                  </div></div>
+                <div class="st-field full"><div class="sub" id="cs-type-desc" style="margin-top:-2px"></div></div>
+                <div class="st-field cs-size"><label>Margin (USD)</label>
+                  <input class="input" id="cs-margin" type="number" min="1" step="1" value="100" oninput="csPreview()"></div>
+                <div class="st-field cs-size"><label>Leverage · <span id="cs-lev-val">20</span>×</label>
+                  <input class="input" id="cs-lev" type="number" min="1" max="40" step="1" value="20" oninput="csPreview()"></div>
+                <div class="st-field cs-size"><label>Stop-loss % · optional</label>
+                  <input class="input" id="cs-stop" type="number" min="0" step="0.1" value="2" placeholder="none (naked)" oninput="csPreview()"></div>
+                <div class="st-field cs-size"><label>Cooldown (hours) · optional</label>
+                  <input class="input" id="cs-cooldown" type="number" min="0" step="1" placeholder="12 (default)"></div>
+                <div class="st-field cs-sensor" style="display:none"><label>Regime timeframe</label>
+                  <select class="input" id="cs-tf"><option value="1h">1h</option><option value="4h">4h</option></select></div>
+                <div class="st-field full cs-size"><label>Protection profile · how FOX manages the stop after entry</label>
+                  <select class="input" id="cs-profile" onchange="csProfileInfo()"><option value="">None — fixed stop only</option></select></div>
+                <div class="st-field full cs-size"><div class="st-preview" id="cs-profile-info" style="display:none"></div></div>
+              </div>
+              <div class="st-preview cs-size" id="cs-preview"></div>
+              <div class="form-row" style="margin-top:14px">
+                <button class="small-button" style="flex:1" id="cs-submit" onclick="createStrategy()">Create strategy</button>
+                <button id="cs-cancel" onclick="closeCreateForm()">Cancel</button>
+              </div>
             </div>
           </div>
           <div class="card"><h2>Your strategies</h2>
             <div id="strategy-signin" class="sub" style="margin-bottom:10px"></div>
             <div id="strategy-list"><div class="muted">Loading…</div></div>
+            <div id="removed-strategies"></div>
           </div>
         </section>
 
@@ -1311,12 +1319,35 @@ async function clearStrategySizing(strategy){
 
 // ---- Strategies tab ----
 let csType='funded', csEditing=null;
+const CS_TYPE_DESC={
+  funded:'Trades signals — opens on its own Long/Short alerts (only the global direction filter can block it).',
+  regime:'Regime-gated — only opens when the trade matches the current BTC regime direction.',
+  sensor:'Sensor — its alert SETS the BTC regime. It never opens a trade of its own.'};
 function csSetType(t){
   csType=t;
   document.querySelectorAll('#cs-type button').forEach(b=>b.classList.toggle('active',b.dataset.type===t));
   const sensor=t==='sensor';
   document.querySelectorAll('#create-strategy-card .cs-size').forEach(el=>el.style.display=sensor?'none':'');
   document.querySelectorAll('#create-strategy-card .cs-sensor').forEach(el=>el.style.display=sensor?'':'none');
+  const d=document.getElementById('cs-type-desc');if(d)d.textContent=CS_TYPE_DESC[t]||'';
+  csPreview();
+}
+function openCreateForm(){document.getElementById('cs-body').style.display='';document.getElementById('cs-toggle').textContent='✕ Close';}
+function closeCreateForm(){document.getElementById('cs-toggle').textContent='＋ Add new strategy';resetStrategyForm();document.getElementById('cs-body').style.display='none';}
+function toggleCreateForm(){document.getElementById('cs-body').style.display==='none'?openCreateForm():closeCreateForm();}
+function csProfileInfo(){
+  const el=document.getElementById('cs-profile-info');if(!el)return;
+  const name=document.getElementById('cs-profile').value;
+  const rec=(window.protData&&window.protData.profiles||{})[name];
+  if(!name||!rec){el.style.display='none';el.innerHTML='';return;}
+  const p=rec.params||{},pct=v=>v==null?'off':('+'+(+(v*100).toFixed(2))+'%');
+  el.style.display='';
+  el.innerHTML=`<div class="pv-head"><span>${esc(name)} manages</span><b>after entry</b></div>
+    <div class="pv-row"><span>Breakeven trigger</span><b>${pct(p.be_trigger_pct)}</b></div>
+    <div class="pv-row"><span>Trailing arms at</span><b>${pct(p.trail_trigger_pct)}</b></div>
+    <div class="pv-row"><span>Trail distance behind peak</span><b>${p.trail_distance_pct!=null?(+(p.trail_distance_pct*100).toFixed(2))+'%':'off'}</b></div>
+    <div class="pv-row"><span>Take-profit target</span><b>${pct(p.tp_pct)}</b></div>
+    <div class="pv-row"><span>Trailing-TP giveback</span><b>${p.tp_trail_pct!=null?(+(p.tp_trail_pct*100).toFixed(2))+'%':'off'}</b></div>`;
 }
 function csPreview(){
   const el=document.getElementById('cs-preview');if(!el||csType==='sensor')return;
@@ -1324,7 +1355,8 @@ function csPreview(){
   document.getElementById('cs-lev-val').textContent=l||'—';
   el.innerHTML=`<div class="pv-head"><span>Sizes to</span><b>$${(m*l).toLocaleString()} notional</b></div>
     <div class="pv-row"><span>Margin · leverage</span><b>$${m.toLocaleString()} · ${l}×</b></div>
-    <div class="pv-row"><span>Initial stop</span><b>${s}% price move</b></div>`;
+    <div class="pv-row"><span>Initial stop</span><b>${s>0?s+'% price move':'none (naked)'}</b></div>`
+    +(s>0?'':`<div class="st-warn">No stop-loss — the position opens unprotected. A Protection Profile can't manage the stop without an initial one; it will run until an exit signal or you close it.</div>`);
 }
 function profileOptions(sel){
   const profs=Object.keys((window.protData&&window.protData.profiles)||{});
@@ -1343,29 +1375,29 @@ async function createStrategy(){
   else{
     body.margin_usd=parseFloat(document.getElementById('cs-margin').value)||0;
     body.leverage=parseInt(document.getElementById('cs-lev').value)||0;
-    body.stop_pct=(parseFloat(document.getElementById('cs-stop').value)||0)/100;
+    const sv=parseFloat(document.getElementById('cs-stop').value)||0;
+    if(sv>0)body.stop_pct=sv/100;                       // stop-loss optional
     const cd=document.getElementById('cs-cooldown').value;if(cd!=='')body.cooldown_hours=parseFloat(cd);
     body.profile=document.getElementById('cs-profile').value;
     if(!(body.margin_usd>0)||!(body.leverage>0))return alert('Enter margin and leverage.');
-    if(!(body.stop_pct>0))return alert('Enter a stop-loss.');
   }
   const h=controlHeaders();if(!h)return needSignIn();
   try{
     const r=await fetch(BOT+"/control/strategy",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify(body)});
     const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");
-    alert((csEditing?'Saved ':'Created ')+name+'. Copy its webhook message below to wire the TradingView alert.');
-    resetStrategyForm();load();
+    alert((csEditing?'Saved ':'Created ')+name+'. Open its “Webhook & messages” below to copy the TradingView alert.');
+    closeCreateForm();load();
   }catch(e){onControlError(e);}
 }
 function resetStrategyForm(){
   csEditing=null;
   const n=document.getElementById('cs-name');n.value='';n.disabled=false;
-  document.getElementById('cs-title').textContent='Create a strategy';
-  document.getElementById('cs-submit').textContent='Create strategy';
-  document.getElementById('cs-cancel').style.display='none';
   document.getElementById('cs-margin').value=100;document.getElementById('cs-lev').value=20;
   document.getElementById('cs-stop').value=2;document.getElementById('cs-cooldown').value='';
-  document.getElementById('cs-profile').value='';csSetType('funded');csPreview();
+  document.getElementById('cs-profile').value='';csProfileInfo();
+  document.getElementById('cs-title').textContent='Strategies';
+  document.getElementById('cs-submit').textContent='Create strategy';
+  csSetType('funded');csPreview();
 }
 function editStrategy(name){
   const r=window.regRows[name],sz=(window.szByName||{})[name]||{};if(!r)return;
@@ -1375,14 +1407,14 @@ function editStrategy(name){
   else{
     document.getElementById('cs-margin').value=sz.margin_usd!=null?sz.margin_usd:100;
     document.getElementById('cs-lev').value=sz.leverage!=null?sz.leverage:20;
-    document.getElementById('cs-stop').value=sz.stop_pct?+(sz.stop_pct*100).toFixed(2):2;
+    document.getElementById('cs-stop').value=sz.stop_pct?+(sz.stop_pct*100).toFixed(2):'';
     document.getElementById('cs-cooldown').value=r.cooldown_hours!=null?r.cooldown_hours:'';
-    document.getElementById('cs-profile').value=r.profile||'';
+    document.getElementById('cs-profile').value=r.profile||'';csProfileInfo();
   }
   csEditing=name;
   document.getElementById('cs-title').textContent='Edit · '+name;
   document.getElementById('cs-submit').textContent='Save changes';
-  document.getElementById('cs-cancel').style.display='';
+  openCreateForm();
   csPreview();document.getElementById('create-strategy-card').scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function toggleStrategyEnabled(name,enable){
@@ -1396,10 +1428,27 @@ async function toggleStrategyEnabled(name,enable){
     const d=await resp.json();if(!d.ok)throw new Error(d.error||"rejected");load();}catch(e){onControlError(e);}
 }
 async function deleteStrategy(name){
-  if(!confirm('Delete strategy "'+name+'"?\n\nRemoves its definition (trade history is kept). Its TradingView alert will then be rejected.'))return;
+  const builtin=!((window.regRows[name]||{}).user_created);
+  const msg=builtin
+    ?'Remove built-in strategy "'+name+'"?\n\nIt disappears from the list and its TradingView alert is rejected. You can restore it anytime from “Removed built-ins”.'
+    :'Delete strategy "'+name+'"?\n\nRemoves its definition (trade history is kept). Its TradingView alert will then be rejected.';
+  if(!confirm(msg))return;
   const h=controlHeaders();if(!h)return needSignIn();
   try{const r=await fetch(BOT+"/control/strategy-delete",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({name})});
     const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");load();}catch(e){onControlError(e);}
+}
+async function restoreStrategy(name){
+  const h=controlHeaders();if(!h)return needSignIn();
+  try{const r=await fetch(BOT+"/control/strategy-restore",{method:"POST",headers:{"Content-Type":"application/json",...h},body:JSON.stringify({name})});
+    const d=await r.json();if(!d.ok)throw new Error(d.error||"rejected");load();}catch(e){onControlError(e);}
+}
+function renderRemoved(hidden){
+  const el=document.getElementById('removed-strategies');if(!el)return;
+  if(!hidden||!hidden.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+    <div class="sub" style="margin-bottom:8px">Removed built-ins · hidden from the bot; restore to accept their alerts again</div>`
+    +hidden.map(n=>`<div class="sz-row" style="grid-template-columns:1fr auto"><div class="who"><b>${esc(n)}</b><small>built-in · removed</small></div>
+      <button class="pos-btn trail" onclick="restoreStrategy('${esc(n).replace(/'/g,"\\'")}')">Restore</button></div>`).join('')+'</div>';
 }
 async function saveBuiltinStrategy(name){
   const i=window.regIndex[name];
@@ -1468,9 +1517,13 @@ function renderStrategyList(rows){
         <div><label class="trail-label">Stop %</label><input class="input" id="es-s-${i}" type="number" min="0.1" step="0.1" value="${sz.stop_pct?+(sz.stop_pct*100).toFixed(2):''}" placeholder="—"></div>
         <div><label class="trail-label">Protection</label><select class="input" id="es-p-${i}">${profileOptions(r.profile)}</select></div>
         <button class="pos-btn trail" onclick="saveBuiltinStrategy('${nEsc}')">Save</button></div>
-        <div class="strat-actions"><button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button></div>`;
+        <div class="strat-actions">
+          <button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button>
+          <button class="pos-btn close" onclick="deleteStrategy('${nEsc}')" title="Remove this built-in (restorable)">Remove</button></div>`;
     }else{
-      controls=`<div class="strat-actions"><button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button></div>`;
+      controls=`<div class="strat-actions">
+        <button class="pos-btn" onclick="toggleMessages('${nEsc}')">Webhook &amp; messages ▾</button>
+        <button class="pos-btn close" onclick="deleteStrategy('${nEsc}')" title="Remove this built-in (restorable)">Remove</button></div>`;
     }
     return `<div class="strat-card">
       <div class="strat-head"><b>${esc(r.strategy)}</b><span class="strat-badge ${badge}">${esc(r.type)}</span><span class="strat-pill p-builtin">${esc(r.coin)}</span>${state}${wired}</div>
@@ -1731,6 +1784,7 @@ async function load(){
     (reg.strategies||[]).forEach((r,i)=>{window.regRows[r.strategy]=r;window.regIndex[r.strategy]=i;});
     window.szByName={};(v.strategies||[]).forEach(s=>{window.szByName[s.strategy]=s.sizing||{};});
     renderStrategyList(reg.strategies||[]);
+    renderRemoved(reg.hidden||[]);
     const sgn=document.getElementById("strategy-signin");
     if(sgn)sgn.innerHTML=controlHeaders()?'Signed in — “Webhook &amp; messages” shows your ready-to-paste alert JSON (with your secret).':'Sign in with Google (top-right) to reveal each strategy’s webhook messages and to create or edit strategies.';
 
